@@ -8,3 +8,16 @@ Thumbs.db
 # 编辑器
 .vscode/
 .idea/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.env
+venv/
+.venv/
+*.egg-info/
+dist/
+
+# 数据（含 API 调用记录）
+data/conversations/*.json

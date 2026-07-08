@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>小码 — 编程学习智能学伴</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <!-- ═══ 顶部导航栏 ═══ -->
+    <header class="navbar">
+        <div class="nav-left">
+            <span class="logo">🦊</span>
+            <span class="app-title">小码 · 编程学伴</span>
+        </div>
+        <div class="nav-right">
+            <button id="btn-new-session" class="btn-nav" title="新建会话">＋ 新对话</button>
+            <select id="session-selector" class="session-selector">
+                <option value="">当前会话</option>
+            </select>
+        </div>
+    </header>
+
+    <!-- ═══ 主内容区 ═══ -->
+    <div class="main-container">
+        <!-- 左侧：对话区 -->
+        <div class="chat-panel" id="chat-panel">
+            <div class="chat-messages" id="chat-messages">
+                <!-- 欢迎消息 -->
+                <div class="welcome-banner">
+                    <div class="welcome-icon">🦊</div>
+                    <h2>你好！我是小码 👋</h2>
+                    <p>你的编程学习伙伴，陪你一起探索代码的世界。</p>
+                    <div class="welcome-tips">
+                        <p>你可以这样问我：</p>
+                        <div class="tip-chips">
+                            <button class="tip-chip" data-message="我的代码报错了，能帮我看看吗？">🐛 帮我看看报错</button>
+                            <button class="tip-chip" data-message="请问怎么判断一个数是不是素数？">💡 解题思路引导</button>
+                            <button class="tip-chip" data-message="什么是递归？">📚 解释知识点</button>
+                            <button class="tip-chip" data-message="你好！我刚学Python，从哪里开始比较好？">💬 随便聊聊</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 底部输入区 -->
+            <div class="chat-input-area">
+                <div class="input-row">
+                    <textarea
+                        id="message-input"
+                        class="message-input"
+                        placeholder="输入你的问题..."
+                        rows="2"
+                        autofocus
+                    ></textarea>
+                    <button id="btn-send" class="btn-send" title="发送 (Ctrl+Enter)">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M22 2L11 13"/>
+                            <path d="M22 2L15 22L11 13L2 9L22 2Z"/>
+                        </svg>
+                    </button>
+                </div>
+                <div class="input-hint">Ctrl + Enter 发送</div>
+            </div>
+        </div>
+
+        <!-- 右侧：代码 & 错误输入面板 -->
+        <aside class="side-panel" id="side-panel">
+            <div class="panel-header">
+                <h3>📝 代码 & 错误信息</h3>
+                <button id="btn-toggle-panel" class="btn-icon" title="收起面板">◀</button>
+            </div>
+
+            <div class="panel-section">
+                <label for="code-input" class="panel-label">
+                    💻 代码（可选）
+                    <span class="label-hint">粘贴你出错的代码</span>
+                </label>
+                <textarea
+                    id="code-input"
+                    class="code-input"
+                    placeholder="在这里粘贴你的代码...
+例如：
+
+for i in range(len(items)):
+    print(items[i+1])"
+                    spellcheck="false"
+                ></textarea>
+            </div>
+
+            <div class="panel-section">
+                <label for="error-input" class="panel-label">
+                    ⚠️ 错误信息（可选）
+                    <span class="label-hint">粘贴报错文本</span>
+                </label>
+                <textarea
+                    id="error-input"
+                    class="error-input"
+                    placeholder="在这里粘贴错误信息...
+例如：
+
+IndexError: list index out of range
+  File 'test.py', line 3, in <module>"
+                    spellcheck="false"
+                ></textarea>
+            </div>
+
+            <div class="panel-section quick-actions">
+                <span class="panel-label">⚡ 快捷场景</span>
+                <div class="action-chips">
+                    <button class="action-chip" data-mode="error">🐛 代码报错</button>
+                    <button class="action-chip" data-mode="guidance">💡 解题求助</button>
+                    <button class="action-chip" data-mode="knowledge">📚 知识点</button>
+                    <button class="action-chip" data-mode="general">💬 自由对话</button>
+                </div>
+            </div>
+
+            <button id="btn-clear-inputs" class="btn-clear">清除输入</button>
+        </aside>
+    </div>
+
+    <!-- ═══ 打字动画模板（隐藏） ═══ -->
+    <template id="typing-template">
+        <div class="message typing">
+            <div class="avatar bot-avatar">🦊</div>
+            <div class="bubble typing-bubble">
+                <span class="dot"></span>
+                <span class="dot"></span>
+                <span class="dot"></span>
+            </div>
+        </div>
+    </template>
+
+    <script src="/static/js/chat.js"></script>
+</body>
+</html>
