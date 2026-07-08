@@ -37,7 +37,11 @@ class Config:
     ENCOURAGE_THRESHOLD = 2    # 连续错误 ≥ 此值触发强化鼓励
 
     # ── 数据存储 ──────────────────────────────────────────
-    DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "conversations")
+    # Vercel serverless 只有 /tmp 可写，本地用项目目录
+    if os.getenv("VERCEL"):
+        DATA_DIR = "/tmp/conversations"
+    else:
+        DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "conversations")
 
     # ── Flask ─────────────────────────────────────────────
     SECRET_KEY = os.getenv("FLASK_SECRET_KEY", "programming-companion-dev-key")
