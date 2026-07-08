@@ -21,3 +21,6 @@ dist/
 
 # 数据（含 API 调用记录）
 data/conversations/*.json
+
+.vercel
+.env*
