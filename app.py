@@ -189,6 +189,16 @@ def delete_session(session_id: str):
         return jsonify({"error": str(e)}), 500
 
 
+@app.route("/api/sessions/<session_id>", methods=["GET"])
+def get_session(session_id: str):
+    """获取指定会话的完整消息记录"""
+    try:
+        conv = conv_manager.get_or_create(session_id)
+        return jsonify(conv.to_dict())
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route("/api/sessions/new", methods=["POST"])
 def new_session():
     """创建新会话并返回 session_id"""

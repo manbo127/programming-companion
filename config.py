@@ -11,6 +11,7 @@ class Config:
     DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY", "your-api-key-here")
     DEEPSEEK_BASE_URL = "https://api.deepseek.com/v1"
     DEEPSEEK_MODEL = "deepseek-chat"
+    DEEPSEEK_TIMEOUT = float(os.getenv("DEEPSEEK_TIMEOUT", "35"))
 
     # ── 模型参数（按场景）──────────────────────────────────
     # 错误分析：低温度保证准确性

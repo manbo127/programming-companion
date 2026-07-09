@@ -16,9 +16,11 @@ class LLMClient:
         self.client = OpenAI(
             api_key=Config.DEEPSEEK_API_KEY,
             base_url=Config.DEEPSEEK_BASE_URL,
+            timeout=Config.DEEPSEEK_TIMEOUT,
+            max_retries=0,
         )
         self.model = Config.DEEPSEEK_MODEL
-        self.max_retries = 3
+        self.max_retries = 2
         self.retry_delay = 1.5  # 秒
 
     def chat(
