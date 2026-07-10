@@ -378,17 +378,31 @@
         saveChat();
         sessionId = sid;
         localStorage.setItem("pc_session_id", sessionId);
-        restoreChat();
-        // 尝试从服务器加载
-        try {
-            const res = await fetch("/api/sessions/" + sid);
-            const data = await res.json();
-            if (data.messages && data.messages.length > 0) {
-                renderServerMessages(data.messages);
+
+        // 先尝试从 localStorage 恢复
+        const saved = localStorage.getItem(STORAGE_PREFIX + sessionId);
+        if (saved) {
+            chatMessages.innerHTML = saved;
+            scrollToBottom();
+        } else {
+            // localStorage 没有，尝试从服务器加载
+            try {
+                const res = await fetch("/api/sessions/" + sid);
+                const data = await res.json();
+                if (data.messages && data.messages.length > 0) {
+                    renderServerMessages(data.messages);
+                }
+            } catch (err) {
+                // 都没有就显示欢迎页
+                chatMessages.innerHTML = `
+                    <div class="welcome-banner">
+                        <div class="welcome-icon">🦊</div>
+                        <h2>切换到这个会话</h2>
+                        <p>聊天记录为空</p>
+                    </div>`;
             }
-        } catch (err) {
-            // 服务器不可用时用 localStorage 的版本
         }
+
         loadSessions();
     }
 
