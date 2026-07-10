@@ -177,6 +177,21 @@ def list_sessions():
         return jsonify({"error": str(e)}), 500
 
 
+@app.route("/api/sessions/<session_id>", methods=["GET"])
+def get_session(session_id: str):
+    """获取指定会话的消息历史"""
+    try:
+        conv = conv_manager.get_or_create(session_id)
+        messages = conv.get_recent_messages(limit=1000)
+        return jsonify({
+            "session_id": conv.session_id,
+            "messages": messages,
+            "created_at": conv.created_at,
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route("/api/sessions/<session_id>", methods=["DELETE"])
 def delete_session(session_id: str):
     """删除指定会话"""

@@ -21,11 +21,14 @@
     // ── 状态 ──────────────────────────────────────────────
     let sessionId = localStorage.getItem("pc_session_id") || "";
     let isLoading = false;
+    const STORAGE_PREFIX = "pc_session_";  // localStorage 键前缀
+    const SESSIONS_INDEX_KEY = "pc_sessions_index";
 
     // ── 初始化 ────────────────────────────────────────────
     function init() {
         bindEvents();
         loadSessions();
+        restoreChat();  // 从 localStorage 恢复当前会话的聊天记录
     }
 
     function bindEvents() {
@@ -180,6 +183,47 @@
 
         chatMessages.appendChild(div);
         scrollToBottom();
+        // 自动保存到 localStorage
+        saveChat();
+    }
+
+    function renderServerMessages(messages) {
+        // 用服务器返回的消息列表重新渲染聊天区
+        const welcome = document.querySelector(".welcome-banner");
+        if (welcome) welcome.remove();
+
+        // 清除现有消息（保留欢迎横幅除外）
+        const existing = chatMessages.querySelectorAll(".message");
+        existing.forEach(el => el.remove());
+
+        messages.forEach(msg => {
+            if (msg.role === "user") {
+                appendMessageSilent("user", msg.content);
+            } else if (msg.role === "assistant") {
+                appendMessageSilent("bot", msg.content);
+            }
+        });
+        saveChat();
+    }
+
+    function appendMessageSilent(role, content) {
+        // 不带自动保存的 appendMessage（用于批量渲染，最后统一保存）
+        const div = document.createElement("div");
+        div.className = "message " + role;
+
+        if (role === "user") {
+            div.innerHTML =
+                '<div class="avatar user-avatar">🧑</div>' +
+                '<div class="bubble user-bubble">' + content + "</div>";
+        } else {
+            const htmlContent = renderMarkdown(content);
+            div.innerHTML =
+                '<div class="avatar bot-avatar">🦊</div>' +
+                '<div class="bubble bot-bubble">' + htmlContent + "</div>";
+        }
+
+        chatMessages.appendChild(div);
+        scrollToBottom();
     }
 
     // ── Markdown 渲染（纯 JS，零依赖）───────────────────
@@ -242,8 +286,69 @@
         }
     }
 
+    // ── localStorage 持久化 ───────────────────────────────
+    function saveChat() {
+        // 保存当前页面的聊天 HTML 内容到 localStorage
+        if (!sessionId) return;
+        const messagesHtml = chatMessages.innerHTML;
+        localStorage.setItem(STORAGE_PREFIX + sessionId, messagesHtml);
+        // 更新会话索引
+        updateSessionsIndex();
+    }
+
+    function restoreChat() {
+        // 从 localStorage 恢复当前会话的聊天记录
+        if (!sessionId) return;
+        const saved = localStorage.getItem(STORAGE_PREFIX + sessionId);
+        if (saved) {
+            chatMessages.innerHTML = saved;
+            scrollToBottom();
+        }
+    }
+
+    function updateSessionsIndex() {
+        // 维护所有本地会话的索引（用于下拉列表）
+        if (!sessionId) return;
+        let index = {};
+        try {
+            index = JSON.parse(localStorage.getItem(SESSIONS_INDEX_KEY) || "{}");
+        } catch (e) { /* ignore */ }
+        index[sessionId] = {
+            updated_at: new Date().toISOString(),
+            first_message: getFirstUserMessage(sessionId),
+        };
+        localStorage.setItem(SESSIONS_INDEX_KEY, JSON.stringify(index));
+    }
+
+    function getFirstUserMessage(sid) {
+        // 从保存的 HTML 中提取第一条用户消息用于会话摘要
+        try {
+            const html = localStorage.getItem(STORAGE_PREFIX + sid);
+            if (!html) return "";
+            const match = html.match(/<div class="bubble user-bubble">([\s\S]*?)<\/div>/);
+            if (match) {
+                let text = match[1].replace(/<[^>]+>/g, "").trim();
+                return text.substring(0, 30);
+            }
+        } catch (e) { /* ignore */ }
+        return "";
+    }
+
+    function deleteLocalSession(sid) {
+        localStorage.removeItem(STORAGE_PREFIX + sid);
+        let index = {};
+        try {
+            index = JSON.parse(localStorage.getItem(SESSIONS_INDEX_KEY) || "{}");
+        } catch (e) { /* ignore */ }
+        delete index[sid];
+        localStorage.setItem(SESSIONS_INDEX_KEY, JSON.stringify(index));
+    }
+
     // ── 会话管理 ──────────────────────────────────────────
     async function handleNewSession() {
+        // 先保存当前会话
+        saveChat();
+
         try {
             const res = await fetch("/api/sessions/new", { method: "POST" });
             const data = await res.json();
@@ -258,6 +363,7 @@
                     <p>有什么我可以帮你的吗？</p>
                 </div>`;
 
+            saveChat();
             clearInputs();
             loadSessions();
         } catch (err) {
@@ -266,34 +372,71 @@
     }
 
     async function switchSession(sid) {
+        // 先保存当前会话，再切换
+        saveChat();
         sessionId = sid;
         localStorage.setItem("pc_session_id", sessionId);
-        // 刷新页面以加载对话历史
-        location.reload();
+        restoreChat();
+        // 尝试从服务器加载（如果服务器有更完整的记录）
+        try {
+            const res = await fetch("/api/sessions/" + sid);
+            const data = await res.json();
+            if (data.messages && data.messages.length > 0) {
+                renderServerMessages(data.messages);
+            }
+        } catch (err) {
+            // 服务器不可用时用 localStorage 的版本
+        }
+        loadSessions();
     }
 
     async function loadSessions() {
+        // 合并服务器会话列表和本地 localStorage 会话
+        const sessions = [];
+
+        // 从服务器加载
         try {
             const res = await fetch("/api/sessions");
             const data = await res.json();
-            const sessions = data.sessions || [];
-
-            sessionSelector.innerHTML = '<option value="">当前会话</option>';
-            sessions.forEach((s) => {
-                const opt = document.createElement("option");
-                opt.value = s.session_id;
-                const date = s.created_at
-                    ? new Date(s.created_at).toLocaleDateString("zh-CN")
-                    : "";
-                opt.textContent = `${date} · ${s.message_count}条消息`;
-                if (s.session_id === sessionId) {
-                    opt.selected = true;
-                }
-                sessionSelector.appendChild(opt);
-            });
+            sessions.push(...(data.sessions || []));
         } catch (err) {
-            console.error("加载会话列表失败:", err);
+            console.error("加载服务器会话列表失败:", err);
         }
+
+        // 从 localStorage 补充（可能有服务器上没有的）
+        let localIndex = {};
+        try {
+            localIndex = JSON.parse(localStorage.getItem(SESSIONS_INDEX_KEY) || "{}");
+        } catch (e) { /* ignore */ }
+
+        Object.entries(localIndex).forEach(([sid, info]) => {
+            if (!sessions.find(s => s.session_id === sid)) {
+                sessions.push({
+                    session_id: sid,
+                    created_at: info.updated_at || "",
+                    updated_at: info.updated_at || "",
+                    message_count: 0,
+                    _local: true,
+                });
+            }
+        });
+
+        sessions.sort((a, b) => (b.updated_at || "").localeCompare(a.updated_at || ""));
+
+        sessionSelector.innerHTML = '<option value="">当前会话 (' + (sessionId ? sessionId.substring(0, 8) : "新") + '...)</option>';
+        sessions.forEach((s) => {
+            if (s.session_id === sessionId) return; // 跳过当前会话
+            const opt = document.createElement("option");
+            opt.value = s.session_id;
+            const date = s.created_at
+                ? new Date(s.created_at).toLocaleDateString("zh-CN")
+                : "";
+            const local = s._local ? "💻" : "";
+            const first = getFirstUserMessage(s.session_id) || "";
+            const label = first ? first.substring(0, 20) : (s.message_count + "条消息");
+            opt.textContent = `${local} ${date} · ${label}`;
+            sessionSelector.appendChild(opt);
+        });
     }
 
     // ── 辅助 ──────────────────────────────────────────────
