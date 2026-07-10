@@ -60,7 +60,7 @@
                         </svg>
                     </button>
                 </div>
-                <div class="input-hint">Ctrl + Enter 发送</div>
+                <div class="input-hint">Enter 发送 · Shift+Enter 换行</div>
             </div>
         </div>
 
@@ -123,6 +123,9 @@
             </div>
         </aside>
     </div>
+
+    <!-- 面板折叠后的浮动打开按钮 -->
+    <button id="btn-toggle-float" class="btn-toggle-float" title="展开工具面板" style="display:none;" onclick="document.getElementById('side-panel').classList.remove('collapsed'); this.style.display='none'; document.getElementById('btn-toggle-panel').textContent='▶';">◀</button>
 
     <!-- ═══ 打字动画模板（隐藏） ═══ -->
     <template id="typing-template">

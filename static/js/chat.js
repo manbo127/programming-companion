@@ -35,9 +35,9 @@
     function bindEvents() {
         // 发送按钮
         btnSend.addEventListener("click", handleSend);
-        // Ctrl + Enter 发送
+        // Enter 发送，Shift+Enter 换行
         messageInput.addEventListener("keydown", (e) => {
-            if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+            if (e.key === "Enter" && !e.shiftKey) {
                 e.preventDefault();
                 handleSend();
             }
@@ -67,11 +67,23 @@
             });
         });
 
-        // 快捷场景 chips
+        // 快捷场景 chips — 点击展开代码区并设置场景提示
         document.querySelectorAll(".action-chip").forEach((chip) => {
             chip.addEventListener("click", () => {
                 document.querySelectorAll(".action-chip").forEach(c => c.classList.remove("active"));
                 chip.classList.add("active");
+                const mode = chip.dataset.mode;
+                if (mode === "error" && !messageInput.value) {
+                    messageInput.value = "我的代码报错了，能帮我看看吗？";
+                } else if (mode === "guidance" && !messageInput.value) {
+                    messageInput.value = "这道题怎么做？";
+                } else if (mode === "knowledge" && !messageInput.value) {
+                    messageInput.value = "什么是";
+                }
+                messageInput.focus();
+                // 展开代码区
+                const codeBody = document.getElementById("code-section-body")?.parentElement;
+                if (codeBody) codeBody.classList.remove("collapsed");
             });
         });
 
@@ -534,12 +546,13 @@
     function togglePanel() {
         sidePanel.classList.toggle("collapsed");
         const btn = btnTogglePanel;
+        const toggleFloat = document.getElementById("btn-toggle-float");
         if (sidePanel.classList.contains("collapsed")) {
-            btn.textContent = "▶";
-            btn.title = "展开面板";
-        } else {
             btn.textContent = "◀";
-            btn.title = "收起面板";
+            if (toggleFloat) toggleFloat.style.display = "flex";
+        } else {
+            btn.textContent = "▶";
+            if (toggleFloat) toggleFloat.style.display = "none";
         }
     }
 

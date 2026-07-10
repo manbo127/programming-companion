@@ -416,6 +416,34 @@ body {
     text-align: right;
 }
 
+/* 浮动打开面板按钮 */
+.btn-toggle-float {
+    position: fixed;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 32px;
+    height: 60px;
+    border: 1px solid #ddd;
+    border-radius: 8px 0 0 8px;
+    background: var(--color-bg-card);
+    color: var(--color-text-light);
+    cursor: pointer;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 200;
+    box-shadow: -2px 0 8px rgba(0,0,0,0.06);
+    transition: all var(--transition);
+}
+
+.btn-toggle-float:hover {
+    background: var(--color-primary);
+    color: #fff;
+    border-color: var(--color-primary);
+}
+
 /* ═══════════════════════════════════════════════════════════
  * 侧边栏
  * ═══════════════════════════════════════════════════════════ */
