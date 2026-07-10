@@ -64,47 +64,28 @@
             </div>
         </div>
 
-        <!-- 右侧：代码 & 错误输入面板 -->
+        <!-- 右侧面板 -->
         <aside class="side-panel" id="side-panel">
             <div class="panel-header">
-                <h3>📝 代码 & 错误信息</h3>
+                <h3>📋 工具面板</h3>
                 <button id="btn-toggle-panel" class="btn-icon" title="收起面板">◀</button>
             </div>
 
-            <div class="panel-section">
-                <label for="code-input" class="panel-label">
-                    💻 代码（可选）
-                    <span class="label-hint">粘贴你出错的代码</span>
-                </label>
-                <textarea
-                    id="code-input"
-                    class="code-input"
-                    placeholder="在这里粘贴你的代码...
-例如：
-
-for i in range(len(items)):
-    print(items[i+1])"
-                    spellcheck="false"
-                ></textarea>
+            <!-- 历史会话（置顶） -->
+            <div class="panel-section history-section">
+                <div class="section-header">
+                    <span class="panel-label">💬 历史会话</span>
+                    <button id="btn-clear-inputs" class="btn-clear-inline">清除输入</button>
+                </div>
+                <div id="history-list" class="history-list">
+                    <div class="history-empty">暂无历史会话</div>
+                </div>
             </div>
 
-            <div class="panel-section">
-                <label for="error-input" class="panel-label">
-                    ⚠️ 错误信息（可选）
-                    <span class="label-hint">粘贴报错文本</span>
-                </label>
-                <textarea
-                    id="error-input"
-                    class="error-input"
-                    placeholder="在这里粘贴错误信息...
-例如：
+            <!-- 分隔 -->
+            <div class="panel-divider"></div>
 
-IndexError: list index out of range
-  File 'test.py', line 3, in <module>"
-                    spellcheck="false"
-                ></textarea>
-            </div>
-
+            <!-- 快捷场景 -->
             <div class="panel-section quick-actions">
                 <span class="panel-label">⚡ 快捷场景</span>
                 <div class="action-chips">
@@ -115,14 +96,31 @@ IndexError: list index out of range
                 </div>
             </div>
 
-            <div class="panel-section history-section">
-                <span class="panel-label">📋 历史会话</span>
-                <div id="history-list" class="history-list">
-                    <div class="history-empty">暂无历史会话</div>
+            <!-- 代码输入（可折叠） -->
+            <div class="panel-section collapsible-section">
+                <div class="section-header collapsible-header" id="code-section-toggle">
+                    <span class="panel-label">💻 代码 & 错误信息</span>
+                    <span class="collapse-arrow">▼</span>
+                </div>
+                <div class="collapsible-body" id="code-section-body">
+                    <label for="code-input" class="panel-label sub-label">代码（可选）</label>
+                    <textarea
+                        id="code-input"
+                        class="code-input"
+                        placeholder="在这里粘贴你的代码..."
+                        rows="6"
+                        spellcheck="false"
+                    ></textarea>
+                    <label for="error-input" class="panel-label sub-label">错误信息（可选）</label>
+                    <textarea
+                        id="error-input"
+                        class="error-input"
+                        placeholder="在这里粘贴错误信息..."
+                        rows="4"
+                        spellcheck="false"
+                    ></textarea>
                 </div>
             </div>
-
-            <button id="btn-clear-inputs" class="btn-clear">清除输入</button>
         </aside>
     </div>
 

@@ -74,6 +74,15 @@
                 chip.classList.add("active");
             });
         });
+
+        // 代码输入区折叠切换
+        const codeToggle = document.getElementById("code-section-toggle");
+        const codeBody = document.getElementById("code-section-body")?.parentElement;
+        if (codeToggle && codeBody) {
+            codeToggle.addEventListener("click", () => {
+                codeBody.classList.toggle("collapsed");
+            });
+        }
     }
 
     // ── 发送消息 ──────────────────────────────────────────
