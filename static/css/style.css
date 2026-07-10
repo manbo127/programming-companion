@@ -557,8 +557,97 @@ body {
     border-color: var(--color-primary);
 }
 
+/* ── 历史会话列表 ───────────────────────────────────────── */
+
+.history-section {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.history-list {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    max-height: 300px;
+}
+
+.history-empty {
+    text-align: center;
+    color: var(--color-text-muted);
+    font-size: 12px;
+    padding: var(--spacing-md);
+}
+
+.history-item {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    padding: 8px 10px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: all var(--transition);
+    font-size: 12px;
+    border: 1px solid transparent;
+}
+
+.history-item:hover {
+    background: #f8f5fc;
+    border-color: #e8e0f0;
+}
+
+.history-item.active {
+    background: #f0ecf7;
+    border-color: var(--color-primary-light);
+}
+
+.history-preview {
+    flex: 1;
+    min-width: 0;
+    color: var(--color-text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.4;
+}
+
+.history-date {
+    color: var(--color-text-muted);
+    font-size: 11px;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.history-delete {
+    width: 22px;
+    height: 22px;
+    border: none;
+    border-radius: 50%;
+    background: transparent;
+    color: var(--color-text-muted);
+    cursor: pointer;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: all var(--transition);
+    opacity: 0;
+}
+
+.history-item:hover .history-delete {
+    opacity: 1;
+}
+
+.history-delete:hover {
+    background: #fde8e8;
+    color: var(--color-error);
+}
+
 .btn-clear {
-    margin-top: auto;
     padding: 8px;
     border: 1px solid #e0d0d0;
     border-radius: var(--radius-sm);

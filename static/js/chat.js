@@ -17,6 +17,7 @@
     const btnClearInputs = document.getElementById("btn-clear-inputs");
     const sessionSelector = document.getElementById("session-selector");
     const sidePanel = document.getElementById("side-panel");
+    const historyList = document.getElementById("history-list");
 
     // ── 状态 ──────────────────────────────────────────────
     let sessionId = localStorage.getItem("pc_session_id") || "";
@@ -372,12 +373,13 @@
     }
 
     async function switchSession(sid) {
-        // 先保存当前会话，再切换
+        if (sid === sessionId) return;
+        // 先保存当前会话
         saveChat();
         sessionId = sid;
         localStorage.setItem("pc_session_id", sessionId);
         restoreChat();
-        // 尝试从服务器加载（如果服务器有更完整的记录）
+        // 尝试从服务器加载
         try {
             const res = await fetch("/api/sessions/" + sid);
             const data = await res.json();
@@ -388,6 +390,57 @@
             // 服务器不可用时用 localStorage 的版本
         }
         loadSessions();
+    }
+
+    async function deleteSession(sid, e) {
+        e.stopPropagation();  // 防止触发切换
+        if (!confirm("确定删除这个会话吗？")) return;
+
+        // 从 localStorage 删除
+        deleteLocalSession(sid);
+
+        // 从服务器删除
+        try {
+            await fetch("/api/sessions/" + sid, { method: "DELETE" });
+        } catch (err) { /* ignore */ }
+
+        // 如果删除的是当前会话，创建新会话
+        if (sid === sessionId) {
+            sessionId = "";
+            localStorage.removeItem("pc_session_id");
+            chatMessages.innerHTML = `
+                <div class="welcome-banner">
+                    <div class="welcome-icon">🦊</div>
+                    <h2>你好！我是小码 👋</h2>
+                    <p>你的编程学习伙伴，陪你一起探索代码的世界。</p>
+                </div>`;
+        }
+
+        loadSessions();
+    }
+
+    function renderHistoryList(sessions) {
+        if (!historyList) return;
+
+        if (sessions.length === 0) {
+            historyList.innerHTML = '<div class="history-empty">暂无历史会话</div>';
+            return;
+        }
+
+        historyList.innerHTML = sessions.map(s => {
+            const sid = s.session_id;
+            const preview = s._preview || getFirstUserMessage(sid) || "(空会话)";
+            const date = s.created_at
+                ? new Date(s.created_at).toLocaleDateString("zh-CN")
+                : "";
+            const isActive = sid === sessionId ? " active" : "";
+            return `
+                <div class="history-item${isActive}" data-sid="${sid}" onclick="window._switchSessionHandler('${sid}')">
+                    <span class="history-preview" title="${escapeHtml(preview)}">${escapeHtml(preview.substring(0, 25))}</span>
+                    <span class="history-date">${date}</span>
+                    <button class="history-delete" title="删除此会话" onclick="window._deleteSessionHandler('${sid}', event)">×</button>
+                </div>`;
+        }).join("");
     }
 
     async function loadSessions() {
@@ -423,9 +476,10 @@
 
         sessions.sort((a, b) => (b.updated_at || "").localeCompare(a.updated_at || ""));
 
+        // 更新下拉选择器
         sessionSelector.innerHTML = '<option value="">当前会话 (' + (sessionId ? sessionId.substring(0, 8) : "新") + '...)</option>';
         sessions.forEach((s) => {
-            if (s.session_id === sessionId) return; // 跳过当前会话
+            if (s.session_id === sessionId) return;
             const opt = document.createElement("option");
             opt.value = s.session_id;
             const date = s.created_at
@@ -437,6 +491,13 @@
             opt.textContent = `${local} ${date} · ${label}`;
             sessionSelector.appendChild(opt);
         });
+
+        // 渲染侧边栏历史会话列表
+        // 给每个 session 附上预览文本
+        sessions.forEach(s => {
+            s._preview = getFirstUserMessage(s.session_id) || "";
+        });
+        renderHistoryList(sessions);
     }
 
     // ── 辅助 ──────────────────────────────────────────────
@@ -475,5 +536,8 @@
     }
 
     // ── 启动 ──────────────────────────────────────────────
+    // 暴露到 window 供 onclick 属性调用（避免 addEventListener 的内存问题）
+    window._switchSessionHandler = switchSession;
+    window._deleteSessionHandler = deleteSession;
     init();
 })();
