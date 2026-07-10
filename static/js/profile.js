@@ -54,6 +54,7 @@
   }
 
   document.getElementById("btn-profile").addEventListener("click", open);
+  document.getElementById("btn-profile-rail").addEventListener("click", open);
   document.getElementById("btn-close-profile").addEventListener("click", () => window.UI?.closeSheets());
   document.getElementById("profile-cancel").addEventListener("click", () => window.UI?.closeSheets());
   form.addEventListener("submit", save);

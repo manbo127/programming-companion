@@ -62,7 +62,7 @@ class TestBootstrap:
 class TestConversations:
     def test_create_and_list(self, client):
         _bootstrap(client)
-        r = _create_conv(client)
+        r = client.post("/api/v1/conversations", json={"title": "列表中的对话"})
         assert r.status_code == 201
         cid = r.get_json()["data"]["id"]
         r = client.get("/api/v1/conversations")
@@ -81,6 +81,25 @@ class TestConversations:
         assert r.status_code == 200
         r = client.get(f"/api/v1/conversations/{cid}")
         assert r.status_code == 404
+
+    def test_update_title_and_reject_blank_title(self, client):
+        _bootstrap(client)
+        cid = client.post("/api/v1/conversations", json={"title": "第一次命名"}).get_json()["data"]["id"]
+        updated = client.patch(
+            f"/api/v1/conversations/{cid}",
+            json={"title": "  递归复习  "},
+        )
+        assert updated.status_code == 200
+        assert updated.get_json()["data"]["title"] == "递归复习"
+        assert client.patch(
+            f"/api/v1/conversations/{cid}", json={"title": "   "}
+        ).status_code == 422
+
+    def test_empty_legacy_conversation_is_hidden_from_history(self, client):
+        _bootstrap(client)
+        _create_conv(client)
+        listed = client.get("/api/v1/conversations").get_json()["data"]
+        assert listed == []
 
 
 class TestMessages:
@@ -196,6 +215,20 @@ class TestMessages:
             if message["role"] == "user" and "这是一条唯一上下文消息" in message["content"]
         ]
         assert len(occurrences) == 1
+
+    def test_positive_streak_creates_actionable_reminder(self, client):
+        _bootstrap(client)
+        cid = client.post(
+            "/api/v1/conversations", json={"title": "积极进展"}
+        ).get_json()["data"]["id"]
+        for index in range(3):
+            response = client.post(
+                f"/api/v1/conversations/{cid}/messages",
+                json={"message": "我明白了，谢谢", "client_message_id": f"positive-{index}"},
+            )
+            assert response.status_code == 200
+        reminders = client.get("/api/v1/reminders").get_json()["data"]
+        assert any(item["type"] == "positive_streak" for item in reminders)
 
 
 class TestOwnership:

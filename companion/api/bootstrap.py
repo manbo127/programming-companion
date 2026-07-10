@@ -41,7 +41,10 @@ def bootstrap():
     """返回当前学习者画像、最近会话、未读提醒。"""
     client = _get_or_create_client()
     profile = ProfileRepository.get_profile(client.id)
-    conversations = ConversationRepository.list_by_client(client.id)[:5]
+    conversations = [
+        conv for conv in ConversationRepository.list_by_client(client.id)
+        if conv.title or conv.messages
+    ][:5]
     reminders = ReminderRepository.unread_for_client(client.id)
 
     data = {
@@ -55,7 +58,7 @@ def bootstrap():
         "recent_conversations": [
             {
                 "id": c.id,
-                "title": c.title or "未命名对话",
+                "title": c.title or "新的对话",
                 "updated_at": c.updated_at.isoformat() if c.updated_at else None,
                 "message_count": len(c.messages) if c.messages else 0,
             }

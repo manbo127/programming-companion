@@ -311,6 +311,13 @@ class ChatService:
                     reminder_type="error_recurring",
                     content=f"我注意到你最近遇到了多次 {error_type} 错误，要不要我帮你系统梳理一下相关的知识点？",
                 )
+        if emotion_state.consecutive_success >= 3:
+            ReminderRepository.create_if_new(
+                client_id=client_id,
+                dedupe_key=f"positive_streak:{conversation_id}:3",
+                reminder_type="positive_streak",
+                content="你已经连续完成了三次积极推进。要不要趁热挑战一个稍难一点的知识点？",
+            )
 
         # 10. 更新会话标题
         if not conv.title and message_text.strip():

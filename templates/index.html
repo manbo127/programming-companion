@@ -16,21 +16,39 @@
 <body>
     <a class="skip-link" href="#main-content">跳到主要内容</a>
 
-    <div id="app-shell" class="app-shell">
-        <aside id="conversation-sidebar" class="conversation-sidebar" aria-label="会话导航">
+    <div id="app-shell" class="app-shell home-mode context-closed">
+        <nav class="app-rail" aria-label="主导航">
+            <button id="btn-home" class="rail-brand" type="button" aria-label="回到新对话" title="新对话">小码</button>
+            <button id="btn-new-session-rail" class="rail-button rail-primary" type="button" aria-label="开启新的对话" title="开启新的对话">
+                <span aria-hidden="true">＋</span><small>新对话</small>
+            </button>
+            <button id="btn-toggle-history" class="rail-button" type="button" aria-label="打开历史对话" aria-expanded="false" aria-controls="conversation-sidebar" title="历史对话">
+                <span aria-hidden="true">☰</span><small>历史</small>
+            </button>
+            <div class="rail-spacer"></div>
+            <button id="btn-profile-rail" class="rail-button" type="button" aria-label="打开学习画像" title="学习画像">
+                <span aria-hidden="true">◇</span><small>画像</small>
+            </button>
+            <button id="btn-learning-rail" class="rail-button" type="button" aria-label="打开学习数据和提醒" title="学习数据">
+                <span aria-hidden="true">↗</span><small>数据</small>
+                <span id="reminders-badge-rail" class="notification-badge rail-badge" hidden>0</span>
+            </button>
+        </nav>
+
+        <aside id="conversation-sidebar" class="conversation-sidebar" aria-label="历史对话" aria-hidden="true">
             <div class="brand-block">
                 <a class="brand-lockup" href="#main-content" aria-label="小码首页">
                     <span class="brand-cn">小码</span>
                     <span class="brand-en">CODE<br>MATE</span>
                 </a>
-                <button id="btn-close-navigation" class="icon-button mobile-only" type="button" aria-label="关闭会话导航">×</button>
+                <button id="btn-close-navigation" class="icon-button" type="button" aria-label="关闭历史对话">×</button>
             </div>
 
-            <p class="sidebar-manifesto">把每一次报错，<br>变成下一次突破。</p>
+            <p class="sidebar-manifesto">把报错，变成突破。</p>
 
             <button id="btn-new-session" class="new-session-button" type="button">
                 <span aria-hidden="true">↗</span>
-                <span>开启新赛段</span>
+                <span>开启新的对话</span>
                 <kbd>⌘ K</kbd>
             </button>
 
@@ -65,24 +83,42 @@
 
         <main id="main-content" class="workspace">
             <header class="workspace-header">
-                <button id="btn-open-navigation" class="icon-button mobile-only" type="button" aria-label="打开会话导航">☰</button>
+                <button id="btn-open-navigation" class="icon-button mobile-only" type="button" aria-label="打开历史对话">☰</button>
                 <div class="conversation-heading">
                     <span class="live-dot" aria-hidden="true"></span>
                     <span id="scene-status" class="scene-status">自动识别</span>
-                    <h1 id="current-conversation-title">新对话</h1>
+                    <button id="btn-rename-session" class="conversation-title-button" type="button" aria-label="修改对话名称" title="点击修改对话名称" disabled>
+                        <span id="current-conversation-title">新的对话</span><i aria-hidden="true">✎</i>
+                    </button>
+                    <input id="conversation-title-input" class="conversation-title-input" maxlength="80" aria-label="对话名称" hidden>
                 </div>
                 <div class="workspace-actions">
                     <span class="system-status"><i aria-hidden="true"></i> SYSTEM ONLINE</span>
                     <button id="btn-toggle-panel" class="text-button" type="button" aria-label="切换代码与报错面板" aria-expanded="true" aria-controls="side-panel">
                         <span>代码舱</span><b aria-hidden="true">↗</b>
                     </button>
-                    <button id="btn-delete-session" class="icon-button danger-button" type="button" aria-label="删除当前会话" title="删除当前会话">×</button>
+                    <div class="conversation-menu-wrap">
+                        <button id="btn-conversation-menu" class="icon-button" type="button" aria-label="对话操作" aria-expanded="false" aria-controls="conversation-menu" disabled>···</button>
+                        <div id="conversation-menu" class="conversation-menu" hidden>
+                            <button id="menu-rename-session" type="button">修改名称</button>
+                            <button id="btn-delete-session" class="menu-danger" type="button">删除对话</button>
+                        </div>
+                    </div>
                 </div>
             </header>
 
             <section id="chat-messages" class="chat-messages" aria-live="polite" aria-label="对话消息"></section>
 
             <footer class="composer-shell">
+                <div class="home-watermark" aria-hidden="true">
+                    <span>DEBUG</span>
+                    <span><i>THE</i> IMPOSSIBLE</span>
+                </div>
+                <div class="home-intro" aria-hidden="true">
+                    <span>PROGRAMMING COMPANION</span>
+                    <h2>今天想一起解决什么？</h2>
+                    <p>带上问题，我们一起拆解。</p>
+                </div>
                 <div id="context-summary" class="context-summary" hidden>
                     <span><i aria-hidden="true"></i><span id="context-summary-text"></span></span>
                     <button id="btn-clear-context" type="button">移除</button>
@@ -99,7 +135,7 @@
 
                 <div class="composer">
                     <div class="composer-corner" aria-hidden="true">ASK / 01</div>
-                    <textarea id="message-input" class="message-input" rows="2" maxlength="5000" placeholder="描述你的问题，或者把卡住你的代码交给我……" aria-label="输入学习问题" autofocus></textarea>
+                    <textarea id="message-input" class="message-input" rows="2" maxlength="5000" placeholder="输入你的编程问题……" aria-label="输入学习问题" autofocus></textarea>
                     <div class="composer-toolbar">
                         <button id="btn-open-context" class="context-button" type="button" aria-controls="side-panel">
                             <span aria-hidden="true">＋</span> 添加代码 / 报错
@@ -117,7 +153,7 @@
             </footer>
         </main>
 
-        <aside id="side-panel" class="context-panel" aria-label="代码与错误上下文" aria-hidden="false">
+        <aside id="side-panel" class="context-panel" aria-label="代码与错误上下文" aria-hidden="true">
             <header class="context-header">
                 <div>
                     <span class="context-kicker">PIT WALL / CONTEXT</span>
@@ -229,32 +265,10 @@
 
     <template id="empty-state-template">
         <div class="empty-state">
-            <div class="hero-ghost" aria-hidden="true">DEBUG<br><i>THE</i> IMPOSSIBLE</div>
             <div class="empty-copy">
-                <div class="empty-route" aria-hidden="true">
-                    <span>START</span><i></i><b>01</b>
-                </div>
                 <p class="empty-eyebrow"><span></span> PROGRAMMING COMPANION</p>
-                <h2>别怕报错。<br><em>我们拆开来看。</em></h2>
-                <p>带上问题、代码或完整报错。小码不会只给结论，而会陪你定位根因、理解思路，再走到自己的答案。</p>
-            </div>
-            <div class="suggestion-grid" aria-label="问题示例">
-                <button class="suggestion-card" type="button" data-message="这段代码为什么会出现索引越界？">
-                    <span class="card-index">01 / ERROR</span>
-                    <strong>读懂报错</strong><span>定位原因，找到修改方向</span><b aria-hidden="true">↗</b>
-                </button>
-                <button class="suggestion-card" type="button" data-message="如何一步步判断一个数是不是素数？">
-                    <span class="card-index">02 / LOGIC</span>
-                    <strong>梳理解题思路</strong><span>从输入输出开始拆解</span><b aria-hidden="true">↗</b>
-                </button>
-                <button class="suggestion-card" type="button" data-message="请用一个生活中的例子解释递归。">
-                    <span class="card-index">03 / CONCEPT</span>
-                    <strong>理解知识点</strong><span>定义、类比与小示例</span><b aria-hidden="true">↗</b>
-                </button>
-                <button class="suggestion-card" type="button" data-message="我刚开始学习 Python，今天适合练习什么？">
-                    <span class="card-index">04 / PLAN</span>
-                    <strong>制定小目标</strong><span>根据阶段安排下一步</span><b aria-hidden="true">↗</b>
-                </button>
+                <h2>继续这段对话</h2>
+                <p>输入一个问题，或从代码舱添加代码与完整报错。</p>
             </div>
         </div>
     </template>

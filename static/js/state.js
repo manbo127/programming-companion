@@ -1,6 +1,6 @@
 const State = {
   currentConversationId: null,
-  currentConversationTitle: "新对话",
+  currentConversationTitle: "新的对话",
   conversations: [],
   profile: null,
   sceneHint: "",
@@ -9,7 +9,7 @@ const State = {
 
   setCurrentConversation(conversation) {
     this.currentConversationId = conversation?.id || null;
-    this.currentConversationTitle = conversation?.title || "新对话";
+    this.currentConversationTitle = conversation?.title || "新的对话";
   },
 
   currentConversation() {

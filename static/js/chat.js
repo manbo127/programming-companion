@@ -127,7 +127,7 @@
     if ((!text && !code && !error) || State.isLoading) return;
 
     if (!State.currentConversationId) {
-      await Conversations.newSession();
+      await Conversations.ensureSession(text, code, error);
     }
     if (!State.currentConversationId) return;
 

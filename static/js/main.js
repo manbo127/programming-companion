@@ -12,12 +12,14 @@
   };
 
   function setContextPanel(open) {
+    if (open) Conversations.closeMobileNavigation();
     shell.classList.toggle("context-closed", !open);
     sidePanel.setAttribute("aria-hidden", String(!open));
     document.getElementById("btn-toggle-panel").setAttribute("aria-expanded", String(open));
   }
 
   function openSheet(panel) {
+    Conversations.closeMobileNavigation();
     closeSheets();
     panel.hidden = false;
     panel.setAttribute("aria-hidden", "false");
@@ -73,11 +75,7 @@
   });
 
   const navigationScrim = document.getElementById("navigation-scrim");
-  function openNavigation() {
-    document.body.classList.add("navigation-open");
-    navigationScrim.hidden = false;
-  }
-  document.getElementById("btn-open-navigation").addEventListener("click", openNavigation);
+  document.getElementById("btn-open-navigation").addEventListener("click", Conversations.openNavigation);
   document.getElementById("btn-close-navigation").addEventListener("click", Conversations.closeMobileNavigation);
   navigationScrim.addEventListener("click", Conversations.closeMobileNavigation);
   backdrop.addEventListener("click", closeSheets);
@@ -96,18 +94,13 @@
 
   async function init() {
     Chat.renderEmptyState();
-    if (window.innerWidth <= 1080) setContextPanel(false);
+    setContextPanel(false);
 
     try {
       const bootstrap = await API.bootstrap();
       Profile.applyProfile(bootstrap.profile || {});
-      const conversations = await Conversations.loadSessions();
-      const targetId = bootstrap.recent_conversations?.[0]?.id || conversations[0]?.id;
-      if (targetId) {
-        await Conversations.switchSession(targetId);
-      } else {
-        await Conversations.newSession();
-      }
+      await Conversations.loadSessions();
+      Conversations.showHome();
       await Learning.refreshBadge();
     } catch (error) {
       UI.toast(error.message || "应用初始化失败，请刷新页面重试", "error");

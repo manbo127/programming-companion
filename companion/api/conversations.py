@@ -29,11 +29,15 @@ def create_conversation():
 @bp.route("/conversations", methods=["GET"])
 def list_conversations():
     client = _get_or_create_client()
-    convs = ConversationRepository.list_by_client(client.id)
+    # 旧版本会在打开首页时提前创建空会话；不再把这些幽灵记录展示给用户。
+    convs = [
+        conv for conv in ConversationRepository.list_by_client(client.id)
+        if conv.title or conv.messages
+    ]
     return api_success([
         {
             "id": c.id,
-            "title": c.title or "未命名对话",
+            "title": c.title or "新的对话",
             "updated_at": c.updated_at.isoformat() if c.updated_at else None,
             "message_count": len(c.messages) if c.messages else 0,
         }
@@ -66,7 +70,10 @@ def update_conversation(conv_id: str):
         return api_error("NOT_FOUND", "会话不存在", 404)
     data = request.get_json(silent=True) or {}
     if "title" in data:
-        conv = ConversationRepository.update(conv, title=str(data["title"])[:200])
+        title = str(data["title"] or "").strip()[:200]
+        if not title:
+            return api_error("VALIDATION_ERROR", "对话名称不能为空", 422)
+        conv = ConversationRepository.update(conv, title=title)
     db.session.commit()
     return api_success({"id": conv.id, "title": conv.title})
 

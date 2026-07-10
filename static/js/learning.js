@@ -2,6 +2,7 @@
   const panel = document.getElementById("learning-panel");
   const content = document.getElementById("learning-content");
   const badge = document.getElementById("reminders-badge");
+  const railBadge = document.getElementById("reminders-badge-rail");
   const languageNames = { python: "Python", java: "Java", c: "C", cpp: "C++" };
 
   function metric(label, value, detail) {
@@ -56,6 +57,21 @@
         text.textContent = reminder.content;
         const actions = document.createElement("div");
         actions.className = "reminder-actions";
+        const start = document.createElement("button");
+        start.type = "button";
+        start.textContent = reminder.type === "positive_streak" ? "开始挑战" : "现在复习";
+        start.addEventListener("click", async () => {
+          await API.markReminderRead(reminder.id);
+          UI.closeSheets();
+          Conversations.newSession();
+          const input = document.getElementById("message-input");
+          input.value = reminder.type === "positive_streak"
+            ? "请根据我最近的学习情况，给我一个稍有挑战但不要直接给答案的编程练习。"
+            : `${reminder.content}\n请从基础概念开始带我复习。`;
+          input.dispatchEvent(new Event("input", { bubbles: true }));
+          input.focus();
+          await refreshBadge();
+        });
         const read = document.createElement("button");
         read.type = "button";
         read.textContent = "标记已读";
@@ -70,7 +86,7 @@
           await API.dismissReminder(reminder.id);
           await loadOverview();
         });
-        actions.append(read, dismiss);
+        actions.append(start, read, dismiss);
         item.append(text, actions);
         list.appendChild(item);
       });
@@ -87,8 +103,10 @@
 
   function updateBadge(reminders) {
     const count = reminders.length;
-    badge.hidden = count === 0;
-    badge.textContent = String(count);
+    [badge, railBadge].forEach(item => {
+      item.hidden = count === 0;
+      item.textContent = String(count);
+    });
   }
 
   async function refreshBadge() {
@@ -111,6 +129,7 @@
   }
 
   document.getElementById("btn-learning").addEventListener("click", open);
+  document.getElementById("btn-learning-rail").addEventListener("click", open);
   document.getElementById("btn-close-learning").addEventListener("click", () => window.UI?.closeSheets());
 
   window.Learning = { open, loadOverview, refreshBadge };
