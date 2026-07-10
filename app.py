@@ -1,215 +1,143 @@
 """
-Flask 主应用 — 路由与核心编排逻辑
-作为"指挥中心"协调各模块，自身不包含重业务逻辑
+兼容启动入口 — 保持旧版 app.py 兼容，内部使用新的 create_app。
 """
-import traceback
-from flask import Flask, request, jsonify, render_template
-from flask_cors import CORS
+from companion import create_app
+from flask import request, jsonify
 
-from config import Config
-from services.llm_client import get_llm_client
-from services.classifier import MessageClassifier
-from services.motivation import MotivationEngine
-from services.conversation import ConversationManager
-from prompts.templates import build_system_prompt, build_user_message
+app = create_app()
 
 
-app = Flask(__name__)
-app.config["SECRET_KEY"] = Config.SECRET_KEY
-CORS(app)
-
-# ── 初始化全局组件 ──────────────────────────────────────
-llm_client = get_llm_client()
-classifier = MessageClassifier()
-motivation = MotivationEngine()
-conv_manager = ConversationManager()
-
-
-# ═══════════════════════════════════════════════════════════
-# 路由 1: 主页 — 聊天界面
-# ═══════════════════════════════════════════════════════════
-
-@app.route("/")
-def index():
-    """返回聊天界面"""
-    return render_template("index.html")
-
-
-# ═══════════════════════════════════════════════════════════
-# 路由 2: 核心 API — 发送消息获取回复
-# ═══════════════════════════════════════════════════════════
+# ── 旧版 /api/chat 兼容层 ──────────────────────────────
+# 内部调用新的 ChatService，前端最终应切换到 /api/v1
 
 @app.route("/api/chat", methods=["POST"])
-def chat():
-    """
-    接收用户消息，返回学伴回复。
+def legacy_chat():
+    from companion.api.bootstrap import _get_or_create_client
+    from companion.services.chat_service import ChatService
+    from companion.repositories.conversation_repository import ConversationRepository
+    from companion.extensions import db
+    from flask import current_app
 
-    请求体 JSON:
-        - message: str      用户文本
-        - code: str         代码（可选）
-        - error: str        错误信息（可选）
-        - session_id: str   会话 ID（可选，首次自动创建）
+    data = request.get_json(force=True)
+    if not data:
+        return jsonify({"error": "请求体不能为空"}), 400
 
-    响应 JSON:
-        - reply: str        学伴回复
-        - scene: str        识别的场景
-        - motivation: str   激励话术（可选）
-        - session_id: str   会话 ID
-    """
+    message_text = str(data.get("message", ""))
+    code = str(data.get("code", ""))
+    error_text = str(data.get("error", ""))
+    session_id = str(data.get("session_id", ""))
+
+    if not message_text and not code and not error_text:
+        return jsonify({"error": "请输入一些内容"}), 400
+
+    client = _get_or_create_client()
+
+    # 兼容旧 session_id → 创建或使用已有会话
+    conv = None
+    if session_id:
+        conv = ConversationRepository.get_by_id(session_id, client.id)
+    if conv is None:
+        conv = ConversationRepository.create(client.id)
+        db.session.flush()
+
     try:
-        data = request.get_json(force=True)
-        if not data:
-            return jsonify({"error": "请求体不能为空"}), 400
-
-        user_text = data.get("message", "").strip()
-        user_code = data.get("code", "").strip()
-        user_error = data.get("error", "").strip()
-        session_id = data.get("session_id", "").strip()
-
-        # 至少需要一些输入
-        if not user_text and not user_code and not user_error:
-            return jsonify({"error": "请输入一些内容"}), 400
-
-        # ── 步骤 1: 消息分类 ─────────────────────────
-        result = classifier.classify(
-            text=user_text,
-            code=user_code,
-            error=user_error,
+        chat_service = ChatService()
+        result = chat_service.process_message(
+            client_id=client.id,
+            conversation_id=conv.id,
+            message_text=message_text,
+            code=code,
+            error_text=error_text,
         )
-
-        # ── 步骤 2: 获取/创建对话 ────────────────────
-        conv = conv_manager.get_or_create(session_id)
-
-        # ── 步骤 3: 组装用户消息 ────────────────────
-        user_content = build_user_message(
-            text=user_text,
-            code=user_code,
-            error=user_error,
-            scene=result.scene,
-        )
-        conv.add_message("user", user_content)
-
-        # ── 步骤 4: 情绪分析 ────────────────────────
-        emotion_state = motivation.analyze(user_text)
-        emotion_hint = motivation.build_emotion_hint(emotion_state)
-
-        # ── 步骤 5: 构建 system prompt ──────────────
-        system_prompt = build_system_prompt(
-            scene=result.scene,
-            emotion_hint=emotion_hint,
-        )
-
-        # ── 步骤 6: 调用 LLM ────────────────────────
-        messages = [{"role": "system", "content": system_prompt}]
-        # 添加历史消息（最近 N 条）
-        history = conv.get_recent_messages(Config.MAX_HISTORY_MESSAGES)
-        messages.extend(history)
-
-        temperature = {
-            "error": Config.ERROR_TEMPERATURE,
-            "guidance": Config.GUIDANCE_TEMPERATURE,
-            "knowledge": Config.KNOWLEDGE_TEMPERATURE,
-            "general": Config.GENERAL_TEMPERATURE,
-        }.get(result.scene, 0.7)
-
-        max_tokens = {
-            "error": Config.ERROR_MAX_TOKENS,
-            "guidance": Config.GUIDANCE_MAX_TOKENS,
-            "knowledge": Config.KNOWLEDGE_MAX_TOKENS,
-            "general": Config.GENERAL_MAX_TOKENS,
-        }.get(result.scene, 2048)
-
-        reply = llm_client.chat(
-            messages=messages,
-            temperature=temperature,
-            max_tokens=max_tokens,
-        )
-
-        # ── 步骤 7: 激励话术叠加 ────────────────────
-        motivation_text = ""
-        praise = motivation.get_praise()
-        encourage = motivation.get_encouragement()
-
-        if praise:
-            motivation_text = praise
-        elif encourage:
-            motivation_text = encourage
-        elif emotion_state.is_frustrated:
-            motivation_text = motivation.get_comfort()
-
-        final_reply = reply
-        if motivation_text:
-            final_reply = reply + "\n\n---\n*" + motivation_text + "*"
-
-        # ── 步骤 8: 保存 + 返回 ────────────────────
-        conv.add_message("assistant", final_reply)
-        conv_manager.save(conv)
-
-        return jsonify({
-            "reply": final_reply,
-            "scene": result.scene,
-            "motivation": motivation_text,
-            "session_id": conv.session_id,
-        })
-
+        db.session.commit()
     except Exception as e:
-        traceback.print_exc()
+        db.session.rollback()
         return jsonify({
-            "error": f"服务暂时不可用: {str(e)}",
-            "reply": f"抱歉，我现在遇到了一点问题。请稍后再试。\n\n（错误信息: {str(e)}）",
+            "error": "服务暂时不可用",
+            "reply": "抱歉，我现在遇到了一点问题。请稍后再试。",
             "scene": "general",
-            "motivation": "小码也需要休息一下，马上就好～",
-            "session_id": "",
+            "motivation": "",
+            "session_id": conv.id,
         }), 500
 
+    # 保留旧响应格式
+    return jsonify({
+        "reply": result["reply"],
+        "scene": result["scene"],
+        "motivation": result["motivation"],
+        "session_id": conv.id,
+    })
 
-# ═══════════════════════════════════════════════════════════
-# 路由 3: 会话管理 — 列出/删除会话
-# ═══════════════════════════════════════════════════════════
 
 @app.route("/api/sessions", methods=["GET"])
-def list_sessions():
-    """列出所有会话"""
-    try:
-        sessions = conv_manager.list_sessions()
-        return jsonify({"sessions": sessions})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-
-@app.route("/api/sessions/<session_id>", methods=["DELETE"])
-def delete_session(session_id: str):
-    """删除指定会话"""
-    try:
-        conv_manager.delete(session_id)
-        # 同时重置激励计数器
-        motivation.reset()
-        return jsonify({"status": "deleted", "session_id": session_id})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-
-@app.route("/api/sessions/<session_id>", methods=["GET"])
-def get_session(session_id: str):
-    """获取指定会话的完整消息记录"""
-    try:
-        conv = conv_manager.get_or_create(session_id)
-        return jsonify(conv.to_dict())
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+def legacy_list_sessions():
+    from companion.api.bootstrap import _get_or_create_client
+    from companion.repositories.conversation_repository import ConversationRepository
+    client = _get_or_create_client()
+    convs = ConversationRepository.list_by_client(client.id)
+    return jsonify({
+        "sessions": [
+            {
+                "session_id": c.id,
+                "created_at": c.created_at.isoformat() if c.created_at else "",
+                "updated_at": c.updated_at.isoformat() if c.updated_at else "",
+                "message_count": len(c.messages) if c.messages else 0,
+            }
+            for c in convs
+        ]
+    })
 
 
 @app.route("/api/sessions/new", methods=["POST"])
-def new_session():
-    """创建新会话并返回 session_id"""
-    conv = conv_manager.get_or_create()  # 不传 id 自动生成
-    motivation.reset()
-    return jsonify({"session_id": conv.session_id})
+def legacy_new_session():
+    from companion.api.bootstrap import _get_or_create_client
+    from companion.repositories.conversation_repository import ConversationRepository
+    from companion.services.motivation import MotivationEngine
+    from companion.extensions import db
+    client = _get_or_create_client()
+    conv = ConversationRepository.create(client.id)
+    db.session.commit()
+    return jsonify({"session_id": conv.id})
 
 
-# ═══════════════════════════════════════════════════════════
-# 启动入口
-# ═══════════════════════════════════════════════════════════
+@app.route("/api/sessions/<session_id>", methods=["DELETE"])
+def legacy_delete_session(session_id: str):
+    from companion.api.bootstrap import _get_or_create_client
+    from companion.repositories.conversation_repository import ConversationRepository
+    from companion.services.motivation import MotivationEngine
+    from companion.extensions import db
+    client = _get_or_create_client()
+    conv = ConversationRepository.get_by_id(session_id, client.id)
+    if conv is None:
+        return jsonify({"error": "会话不存在"}), 404
+    ConversationRepository.delete(conv)
+    MotivationEngine.reset_conversation(session_id)
+    db.session.commit()
+    return jsonify({"status": "deleted", "session_id": session_id})
+
+
+@app.route("/api/sessions/<session_id>", methods=["GET"])
+def legacy_get_session(session_id: str):
+    from companion.api.bootstrap import _get_or_create_client
+    from companion.repositories.conversation_repository import ConversationRepository
+    client = _get_or_create_client()
+    conv = ConversationRepository.get_by_id(session_id, client.id)
+    if conv is None:
+        return jsonify({"error": "会话不存在"}), 404
+    return jsonify({
+        "session_id": conv.id,
+        "messages": [
+            {
+                "role": m.role,
+                "content": m.content,
+                "timestamp": m.created_at.isoformat() if m.created_at else "",
+            }
+            for m in sorted(conv.messages, key=lambda x: x.sequence_no) if conv.messages
+        ],
+        "created_at": conv.created_at.isoformat() if conv.created_at else "",
+        "updated_at": conv.updated_at.isoformat() if conv.updated_at else "",
+    })
+
 
 if __name__ == "__main__":
     print("=" * 60)
@@ -217,8 +145,7 @@ if __name__ == "__main__":
     print("  Programming Learning Companion")
     print("=" * 60)
     print(f"  访问地址: http://127.0.0.1:5000")
-    print(f"  DeepSeek 模型: {Config.DEEPSEEK_MODEL}")
-    print(f"  数据目录: {Config.DATA_DIR}")
+    from companion.config import BaseConfig
+    print(f"  DeepSeek 模型: {BaseConfig.DEEPSEEK_MODEL}")
     print("=" * 60)
-
-    app.run(host="127.0.0.1", port=5000, debug=Config.DEBUG)
+    app.run(host="127.0.0.1", port=5000, debug=app.config.get("DEBUG", False))

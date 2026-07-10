@@ -21,3 +21,15 @@ dist/
 
 # 数据（含 API 调用记录）
 data/conversations/*.json
+
+# SQLite
+instance/*.db
+instance/*.db-wal
+instance/*.db-shm
+*.db
+*.db-wal
+*.db-shm
+
+# Reasonix / Codex 本地元数据与临时渲染
+.reasonix/
+tmp_architecture_render.html

@@ -3,135 +3,269 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>小码 — 编程学习智能学伴</title>
+    <meta name="description" content="小码是一位专注于代码错误解读、解题引导和知识点讲解的编程学习伙伴。">
+    <meta name="theme-color" content="#151810">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <title>小码 · 编程学习智能学伴</title>
+    <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Playfair+Display:ital,wght@0,600;1,600&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/css/style.css">
 </head>
 <body>
-    <!-- ═══ 顶部导航栏 ═══ -->
-    <header class="navbar">
-        <div class="nav-left">
-            <span class="logo">🦊</span>
-            <span class="app-title">小码 · 编程学伴</span>
-        </div>
-        <div class="nav-right">
-            <button id="btn-new-session" class="btn-nav" title="新建会话">＋ 新对话</button>
-            <button id="btn-delete-session" class="btn-nav btn-danger" title="删除当前会话">删除会话</button>
-            <select id="session-selector" class="session-selector">
-                <option value="">当前会话</option>
-            </select>
-        </div>
-    </header>
+    <a class="skip-link" href="#main-content">跳到主要内容</a>
 
-    <!-- ═══ 主内容区 ═══ -->
-    <div class="main-container">
-        <!-- 左侧：对话区 -->
-        <div class="chat-panel" id="chat-panel">
-            <div class="chat-messages" id="chat-messages">
-                <!-- 欢迎消息 -->
-                <div class="welcome-banner">
-                    <div class="welcome-icon">🦊</div>
-                    <h2>你好！我是小码 👋</h2>
-                    <p>你的编程学习伙伴，陪你一起探索代码的世界。</p>
-                    <div class="welcome-tips">
-                        <p>你可以这样问我：</p>
-                        <div class="tip-chips">
-                            <button class="tip-chip" data-message="我的代码报错了，能帮我看看吗？">🐛 帮我看看报错</button>
-                            <button class="tip-chip" data-message="请问怎么判断一个数是不是素数？">💡 解题思路引导</button>
-                            <button class="tip-chip" data-message="什么是递归？">📚 解释知识点</button>
-                            <button class="tip-chip" data-message="你好！我刚学Python，从哪里开始比较好？">💬 随便聊聊</button>
+    <div id="app-shell" class="app-shell">
+        <aside id="conversation-sidebar" class="conversation-sidebar" aria-label="会话导航">
+            <div class="brand-block">
+                <a class="brand-lockup" href="#main-content" aria-label="小码首页">
+                    <span class="brand-cn">小码</span>
+                    <span class="brand-en">CODE<br>MATE</span>
+                </a>
+                <button id="btn-close-navigation" class="icon-button mobile-only" type="button" aria-label="关闭会话导航">×</button>
+            </div>
+
+            <p class="sidebar-manifesto">把每一次报错，<br>变成下一次突破。</p>
+
+            <button id="btn-new-session" class="new-session-button" type="button">
+                <span aria-hidden="true">↗</span>
+                <span>开启新赛段</span>
+                <kbd>⌘ K</kbd>
+            </button>
+
+            <div class="sidebar-section-heading">
+                <span>SESSION LOG</span>
+                <span id="conversation-count" class="count-label">00</span>
+            </div>
+            <nav id="conversation-list" class="conversation-list" aria-label="最近对话"></nav>
+
+            <div class="sidebar-footer">
+                <button id="btn-profile" class="sidebar-action" type="button">
+                    <span class="action-index" aria-hidden="true">01</span>
+                    <span>
+                        <strong id="sidebar-profile-name">学习画像</strong>
+                        <small>PROFILE</small>
+                    </span>
+                    <span class="action-arrow" aria-hidden="true">↗</span>
+                </button>
+                <button id="btn-learning" class="sidebar-action" type="button">
+                    <span class="action-index" aria-hidden="true">02</span>
+                    <span>
+                        <strong>学习数据</strong>
+                        <small>TELEMETRY</small>
+                    </span>
+                    <span id="reminders-badge" class="notification-badge" hidden>0</span>
+                    <span class="action-arrow" aria-hidden="true">↗</span>
+                </button>
+            </div>
+        </aside>
+
+        <button id="navigation-scrim" class="navigation-scrim" type="button" aria-label="关闭导航遮罩" hidden></button>
+
+        <main id="main-content" class="workspace">
+            <header class="workspace-header">
+                <button id="btn-open-navigation" class="icon-button mobile-only" type="button" aria-label="打开会话导航">☰</button>
+                <div class="conversation-heading">
+                    <span class="live-dot" aria-hidden="true"></span>
+                    <span id="scene-status" class="scene-status">自动识别</span>
+                    <h1 id="current-conversation-title">新对话</h1>
+                </div>
+                <div class="workspace-actions">
+                    <span class="system-status"><i aria-hidden="true"></i> SYSTEM ONLINE</span>
+                    <button id="btn-toggle-panel" class="text-button" type="button" aria-label="切换代码与报错面板" aria-expanded="true" aria-controls="side-panel">
+                        <span>代码舱</span><b aria-hidden="true">↗</b>
+                    </button>
+                    <button id="btn-delete-session" class="icon-button danger-button" type="button" aria-label="删除当前会话" title="删除当前会话">×</button>
+                </div>
+            </header>
+
+            <section id="chat-messages" class="chat-messages" aria-live="polite" aria-label="对话消息"></section>
+
+            <footer class="composer-shell">
+                <div id="context-summary" class="context-summary" hidden>
+                    <span><i aria-hidden="true"></i><span id="context-summary-text"></span></span>
+                    <button id="btn-clear-context" type="button">移除</button>
+                </div>
+
+                <div class="scene-selector" role="group" aria-label="回答模式">
+                    <span class="selector-label">PIT MODE</span>
+                    <button class="action-chip active" type="button" data-mode="" aria-pressed="true">自动</button>
+                    <button class="action-chip" type="button" data-mode="error" aria-pressed="false">错误解读</button>
+                    <button class="action-chip" type="button" data-mode="guidance" aria-pressed="false">思路引导</button>
+                    <button class="action-chip" type="button" data-mode="knowledge" aria-pressed="false">知识讲解</button>
+                    <button class="action-chip" type="button" data-mode="general" aria-pressed="false">自由交流</button>
+                </div>
+
+                <div class="composer">
+                    <div class="composer-corner" aria-hidden="true">ASK / 01</div>
+                    <textarea id="message-input" class="message-input" rows="2" maxlength="5000" placeholder="描述你的问题，或者把卡住你的代码交给我……" aria-label="输入学习问题" autofocus></textarea>
+                    <div class="composer-toolbar">
+                        <button id="btn-open-context" class="context-button" type="button" aria-controls="side-panel">
+                            <span aria-hidden="true">＋</span> 添加代码 / 报错
+                        </button>
+                        <div class="composer-submit">
+                            <span id="input-count" class="input-count">0 / 5000</span>
+                            <span class="keyboard-hint">CTRL ↵</span>
+                            <button id="btn-send" class="send-button" type="button" aria-label="发送消息" title="发送消息">
+                                <span>发送</span><b aria-hidden="true">↗</b>
+                            </button>
                         </div>
                     </div>
                 </div>
-            </div>
+                <p class="composer-note">小码可能会犯错。理解过程，比复制答案更重要。</p>
+            </footer>
+        </main>
 
-            <!-- 底部输入区 -->
-            <div class="chat-input-area">
-                <div class="input-row">
-                    <textarea
-                        id="message-input"
-                        class="message-input"
-                        placeholder="输入你的问题..."
-                        rows="2"
-                        autofocus
-                    ></textarea>
-                    <button id="btn-send" class="btn-send" title="发送 (Ctrl+Enter)">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M22 2L11 13"/>
-                            <path d="M22 2L15 22L11 13L2 9L22 2Z"/>
-                        </svg>
-                    </button>
+        <aside id="side-panel" class="context-panel" aria-label="代码与错误上下文" aria-hidden="false">
+            <header class="context-header">
+                <div>
+                    <span class="context-kicker">PIT WALL / CONTEXT</span>
+                    <h2>代码舱</h2>
                 </div>
-                <div class="input-hint">Ctrl + Enter 发送</div>
-            </div>
-        </div>
+                <button id="btn-close-panel" class="icon-button" type="button" aria-label="关闭代码面板">×</button>
+            </header>
 
-        <!-- 右侧：代码 & 错误输入面板 -->
-        <aside class="side-panel" id="side-panel">
-            <div class="panel-header">
-                <h3>📝 代码 & 错误信息</h3>
-                <button id="btn-toggle-panel" class="btn-icon" title="收起面板">◀</button>
-            </div>
+            <div class="context-body">
+                <p class="panel-intro">把运行现场交给小码：语言、代码和完整报错越准确，分析越接近根因。</p>
+                <div class="field-group compact-field">
+                    <label for="language-hint"><span>01</span> 编程语言</label>
+                    <select id="language-hint">
+                        <option value="">自动识别</option>
+                        <option value="python">Python</option>
+                        <option value="java">Java</option>
+                        <option value="c">C</option>
+                        <option value="cpp">C++</option>
+                    </select>
+                </div>
 
-            <div class="panel-section">
-                <label for="code-input" class="panel-label">
-                    💻 代码（可选）
-                    <span class="label-hint">粘贴你出错的代码</span>
-                </label>
-                <textarea
-                    id="code-input"
-                    class="code-input"
-                    placeholder="在这里粘贴你的代码...
-例如：
+                <div class="field-group code-field">
+                    <div class="field-heading">
+                        <label for="code-input"><span>02</span> 源代码</label>
+                        <span id="code-count">0 / 10000</span>
+                    </div>
+                    <textarea id="code-input" class="code-input" maxlength="10000" spellcheck="false" placeholder="// Paste your code here"></textarea>
+                </div>
 
-for i in range(len(items)):
-    print(items[i+1])"
-                    spellcheck="false"
-                ></textarea>
-            </div>
-
-            <div class="panel-section">
-                <label for="error-input" class="panel-label">
-                    ⚠️ 错误信息（可选）
-                    <span class="label-hint">粘贴报错文本</span>
-                </label>
-                <textarea
-                    id="error-input"
-                    class="error-input"
-                    placeholder="在这里粘贴错误信息...
-例如：
-
-IndexError: list index out of range
-  File 'test.py', line 3, in <module>"
-                    spellcheck="false"
-                ></textarea>
-            </div>
-
-            <div class="panel-section quick-actions">
-                <span class="panel-label">⚡ 快捷场景</span>
-                <div class="action-chips">
-                    <button class="action-chip" data-mode="error">🐛 代码报错</button>
-                    <button class="action-chip" data-mode="guidance">💡 解题求助</button>
-                    <button class="action-chip" data-mode="knowledge">📚 知识点</button>
-                    <button class="action-chip" data-mode="general">💬 自由对话</button>
+                <div class="field-group error-field">
+                    <div class="field-heading">
+                        <label for="error-input"><span>03</span> 报错 / 异常现象</label>
+                        <span id="error-count">0 / 5000</span>
+                    </div>
+                    <textarea id="error-input" class="error-input" maxlength="5000" spellcheck="false" placeholder="粘贴错误信息，或描述实际结果与预期结果"></textarea>
                 </div>
             </div>
 
-            <button id="btn-clear-inputs" class="btn-clear">清除输入</button>
+            <footer class="context-footer">
+                <p><span aria-hidden="true">◆</span> 内容只用于本次分析，系统不会执行你的代码。</p>
+                <button id="btn-clear-inputs" class="secondary-button" type="button">清空代码舱</button>
+            </footer>
         </aside>
     </div>
 
-    <!-- ═══ 打字动画模板（隐藏） ═══ -->
-    <template id="typing-template">
-        <div class="message typing">
-            <div class="avatar bot-avatar">🦊</div>
-            <div class="bubble typing-bubble">
-                <span class="dot"></span>
-                <span class="dot"></span>
-                <span class="dot"></span>
+    <div id="sheet-backdrop" class="sheet-backdrop" hidden></div>
+
+    <aside id="profile-panel" class="utility-sheet" aria-hidden="true" hidden>
+        <header class="sheet-header">
+            <div>
+                <span class="context-kicker">DRIVER SETUP / 01</span>
+                <h2>学习画像</h2>
+            </div>
+            <button id="btn-close-profile" class="icon-button" type="button" aria-label="关闭学习画像">×</button>
+        </header>
+        <form id="profile-form" class="sheet-content">
+            <p class="sheet-lead">让每次回答更接近你的基础、语言习惯与当前目标。</p>
+            <div class="field-group">
+                <label for="profile-nickname">怎么称呼你</label>
+                <input id="profile-nickname" maxlength="50" placeholder="例如：小林">
+            </div>
+            <div class="field-group">
+                <label for="profile-level">当前阶段</label>
+                <select id="profile-level">
+                    <option value="beginner">刚开始学习</option>
+                    <option value="intermediate">已有一些基础</option>
+                </select>
+            </div>
+            <div class="field-group">
+                <label for="profile-langs">常用语言</label>
+                <input id="profile-langs" maxlength="200" placeholder="Python, Java">
+                <small>用逗号分隔，回答时会优先采用这些语言。</small>
+            </div>
+            <div class="field-group">
+                <label for="profile-goal">近期学习目标</label>
+                <textarea id="profile-goal" rows="4" maxlength="200" placeholder="例如：理解递归，完成数据结构课程设计"></textarea>
+            </div>
+            <div class="sheet-actions">
+                <button id="profile-cancel" class="secondary-button" type="button">取消</button>
+                <button id="profile-save" class="primary-button" type="submit">保存画像 ↗</button>
+            </div>
+        </form>
+    </aside>
+
+    <aside id="learning-panel" class="utility-sheet learning-sheet" aria-hidden="true" hidden>
+        <header class="sheet-header">
+            <div>
+                <span class="context-kicker">TELEMETRY / LAST 50</span>
+                <h2>学习数据</h2>
+            </div>
+            <button id="btn-close-learning" class="icon-button" type="button" aria-label="关闭学习概览">×</button>
+        </header>
+        <div id="learning-content" class="sheet-content"></div>
+    </aside>
+
+    <div id="toast-region" class="toast-region" aria-live="polite" aria-atomic="true"></div>
+
+    <dialog id="confirm-dialog" class="confirm-dialog">
+        <form method="dialog">
+            <span class="dialog-label">DANGER ZONE</span>
+            <h2 id="confirm-title">删除当前对话？</h2>
+            <p id="confirm-message">删除后无法恢复。</p>
+            <div class="dialog-actions">
+                <button value="cancel" class="secondary-button">取消</button>
+                <button value="confirm" class="danger-confirm-button">确认删除</button>
+            </div>
+        </form>
+    </dialog>
+
+    <template id="empty-state-template">
+        <div class="empty-state">
+            <div class="hero-ghost" aria-hidden="true">DEBUG<br><i>THE</i> IMPOSSIBLE</div>
+            <div class="empty-copy">
+                <div class="empty-route" aria-hidden="true">
+                    <span>START</span><i></i><b>01</b>
+                </div>
+                <p class="empty-eyebrow"><span></span> PROGRAMMING COMPANION</p>
+                <h2>别怕报错。<br><em>我们拆开来看。</em></h2>
+                <p>带上问题、代码或完整报错。小码不会只给结论，而会陪你定位根因、理解思路，再走到自己的答案。</p>
+            </div>
+            <div class="suggestion-grid" aria-label="问题示例">
+                <button class="suggestion-card" type="button" data-message="这段代码为什么会出现索引越界？">
+                    <span class="card-index">01 / ERROR</span>
+                    <strong>读懂报错</strong><span>定位原因，找到修改方向</span><b aria-hidden="true">↗</b>
+                </button>
+                <button class="suggestion-card" type="button" data-message="如何一步步判断一个数是不是素数？">
+                    <span class="card-index">02 / LOGIC</span>
+                    <strong>梳理解题思路</strong><span>从输入输出开始拆解</span><b aria-hidden="true">↗</b>
+                </button>
+                <button class="suggestion-card" type="button" data-message="请用一个生活中的例子解释递归。">
+                    <span class="card-index">03 / CONCEPT</span>
+                    <strong>理解知识点</strong><span>定义、类比与小示例</span><b aria-hidden="true">↗</b>
+                </button>
+                <button class="suggestion-card" type="button" data-message="我刚开始学习 Python，今天适合练习什么？">
+                    <span class="card-index">04 / PLAN</span>
+                    <strong>制定小目标</strong><span>根据阶段安排下一步</span><b aria-hidden="true">↗</b>
+                </button>
             </div>
         </div>
     </template>
 
+    <script src="/static/js/api.js"></script>
+    <script src="/static/js/state.js"></script>
+    <script src="/static/js/markdown.js"></script>
     <script src="/static/js/chat.js"></script>
+    <script src="/static/js/conversations.js"></script>
+    <script src="/static/js/profile.js"></script>
+    <script src="/static/js/learning.js"></script>
+    <script src="/static/js/main.js"></script>
 </body>
 </html>

@@ -1,0 +1,29 @@
+[Unit]
+Description=CodeMate Flask application
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=exec
+User=codemate
+Group=codemate
+WorkingDirectory=/srv/codemate
+EnvironmentFile=/srv/codemate/.env
+Environment=PYTHONDONTWRITEBYTECODE=1
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/srv/codemate/.venv/bin/gunicorn --worker-class gthread --workers 1 --threads 4 --bind 127.0.0.1:8000 --timeout 75 --graceful-timeout 20 --keep-alive 5 --access-logfile - --error-logfile - run:app
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=25
+KillSignal=SIGTERM
+UMask=0027
+
+# Basic service hardening. SQLite remains writable through ReadWritePaths.
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=full
+ReadWritePaths=/srv/codemate/instance
+
+[Install]
+WantedBy=multi-user.target
