@@ -12,8 +12,8 @@ class DeepSeekGateway(LLMGateway):
     def __init__(
         self,
         api_key: str,
-        base_url: str = "https://api.deepseek.com/v1",
-        model: str = "deepseek-chat",
+        base_url: str = "https://api.deepseek.com",
+        model: str = "deepseek-v4-flash",
         timeout: float = 35.0,
         max_retries: int = 2,
         total_timeout: float = 40.0,

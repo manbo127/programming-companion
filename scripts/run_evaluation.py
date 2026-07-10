@@ -167,8 +167,8 @@ def run_live_evaluation():
 
     llm = DeepSeekGateway(
         api_key=os.getenv("DEEPSEEK_API_KEY"),
-        base_url=os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com/v1"),
-        model=os.getenv("DEEPSEEK_MODEL", "deepseek-chat"),
+        base_url=os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com"),
+        model=os.getenv("DEEPSEEK_MODEL", "deepseek-v4-flash"),
     )
     chat_service = ChatService(llm=llm)
 

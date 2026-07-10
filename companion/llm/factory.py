@@ -23,8 +23,8 @@ def create_llm_gateway(config: dict | None = None) -> LLMGateway:
 
     return DeepSeekGateway(
         api_key=api_key,
-        base_url=config.get("DEEPSEEK_BASE_URL", os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com/v1")),
-        model=config.get("DEEPSEEK_MODEL", os.getenv("DEEPSEEK_MODEL", "deepseek-chat")),
+        base_url=config.get("DEEPSEEK_BASE_URL", os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com")),
+        model=config.get("DEEPSEEK_MODEL", os.getenv("DEEPSEEK_MODEL", "deepseek-v4-flash")),
         timeout=float(config.get("DEEPSEEK_TIMEOUT", os.getenv("DEEPSEEK_TIMEOUT", "35"))),
         max_retries=int(config.get("DEEPSEEK_MAX_RETRIES", os.getenv("DEEPSEEK_MAX_RETRIES", "2"))),
         total_timeout=float(config.get("DEEPSEEK_TOTAL_TIMEOUT", os.getenv("DEEPSEEK_TOTAL_TIMEOUT", "40"))),
