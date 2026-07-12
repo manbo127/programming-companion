@@ -192,14 +192,10 @@ body {
 }
 
 .welcome-mascot {
-    margin-bottom: 24px;
-    display: flex;
-    justify-content: center;
-}
-
-.welcome-mascot svg {
-    filter: drop-shadow(0 4px 16px rgba(204, 120, 92, 0.15));
-    animation: floatIn 0.7s ease;
+    font-size: 88px;
+    line-height: 1;
+    margin-bottom: 20px;
+    animation: floatIn 0.6s ease;
 }
 
 .welcome-title {
@@ -496,6 +492,31 @@ body {
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .history-date { color: var(--muted-soft); font-size: 11px; white-space: nowrap; flex-shrink: 0; }
+.history-rename {
+    width: 20px; height: 20px;
+    border: none; border-radius: 50%;
+    background: transparent; color: var(--muted-soft);
+    cursor: pointer; font-size: 11px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; transition: all var(--transition);
+    opacity: 0;
+}
+.history-item:hover .history-rename { opacity: 1; }
+.history-rename:hover { background: var(--surface-soft); color: var(--primary); }
+
+.rename-input {
+    flex: 1;
+    padding: 3px 6px;
+    border: 1.5px solid var(--primary);
+    border-radius: var(--radius-sm);
+    font-family: var(--font-sans);
+    font-size: 12px;
+    background: #fff;
+    color: var(--ink);
+    outline: none;
+    min-width: 0;
+}
+
 .history-delete {
     width: 22px; height: 22px;
     border: none; border-radius: 50%;

@@ -380,21 +380,7 @@
             // 清空聊天区
             chatMessages.innerHTML = `
                 <div class="welcome-banner">
-                    <div class="welcome-mascot">
-                        <svg width="96" height="96" viewBox="0 0 96 96" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <ellipse cx="48" cy="52" rx="38" ry="34" fill="#E8D5C4"/>
-                            <polygon points="18,24 12,4 30,18" fill="#CC785C"/>
-                            <polygon points="78,24 84,4 66,18" fill="#CC785C"/>
-                            <polygon points="18,24 16,10 28,20" fill="#E8C8B0"/>
-                            <polygon points="78,24 80,10 68,20" fill="#E8C8B0"/>
-                            <ellipse cx="36" cy="50" rx="5" ry="5.5" fill="#141413"/>
-                            <ellipse cx="60" cy="50" rx="5" ry="5.5" fill="#141413"/>
-                            <circle cx="37.5" cy="48" r="1.6" fill="#fff"/>
-                            <circle cx="61.5" cy="48" r="1.6" fill="#fff"/>
-                            <ellipse cx="48" cy="58" rx="4.5" ry="3.5" fill="#3D3D3A"/>
-                            <path d="M42 64 Q48 69 54 64" stroke="#3D3D3A" stroke-width="1.8" fill="none" stroke-linecap="round"/>
-                        </svg>
-                    </div>
+                    <div class="welcome-mascot">🦊</div>
                     <h1 class="welcome-title">新对话开始了<span class="welcome-dot">.</span></h1>
                     <p class="welcome-desc">有什么我可以帮你的吗？</p>
                 </div>`;
@@ -431,21 +417,7 @@
                 // 都没有就显示欢迎页
                 chatMessages.innerHTML = `
                     <div class="welcome-banner">
-                        <div class="welcome-mascot">
-                            <svg width="96" height="96" viewBox="0 0 96 96" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                <ellipse cx="48" cy="52" rx="38" ry="34" fill="#E8D5C4"/>
-                                <polygon points="18,24 12,4 30,18" fill="#CC785C"/>
-                                <polygon points="78,24 84,4 66,18" fill="#CC785C"/>
-                                <polygon points="18,24 16,10 28,20" fill="#E8C8B0"/>
-                                <polygon points="78,24 80,10 68,20" fill="#E8C8B0"/>
-                                <ellipse cx="36" cy="50" rx="5" ry="5.5" fill="#141413"/>
-                                <ellipse cx="60" cy="50" rx="5" ry="5.5" fill="#141413"/>
-                                <circle cx="37.5" cy="48" r="1.6" fill="#fff"/>
-                                <circle cx="61.5" cy="48" r="1.6" fill="#fff"/>
-                                <ellipse cx="48" cy="58" rx="4.5" ry="3.5" fill="#3D3D3A"/>
-                                <path d="M42 64 Q48 69 54 64" stroke="#3D3D3A" stroke-width="1.8" fill="none" stroke-linecap="round"/>
-                            </svg>
-                        </div>
+                        <div class="welcome-mascot">🦊</div>
                         <h1 class="welcome-title">聊天记录为空<span class="welcome-dot">.</span></h1>
                         <p class="welcome-desc">该会话没有保存的消息。</p>
                     </div>`;
@@ -473,26 +445,52 @@
             localStorage.removeItem("pc_session_id");
             chatMessages.innerHTML = `
                 <div class="welcome-banner">
-                    <div class="welcome-mascot">
-                        <svg width="96" height="96" viewBox="0 0 96 96" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <ellipse cx="48" cy="52" rx="38" ry="34" fill="#E8D5C4"/>
-                            <polygon points="18,24 12,4 30,18" fill="#CC785C"/>
-                            <polygon points="78,24 84,4 66,18" fill="#CC785C"/>
-                            <polygon points="18,24 16,10 28,20" fill="#E8C8B0"/>
-                            <polygon points="78,24 80,10 68,20" fill="#E8C8B0"/>
-                            <ellipse cx="36" cy="50" rx="5" ry="5.5" fill="#141413"/>
-                            <ellipse cx="60" cy="50" rx="5" ry="5.5" fill="#141413"/>
-                            <circle cx="37.5" cy="48" r="1.6" fill="#fff"/>
-                            <circle cx="61.5" cy="48" r="1.6" fill="#fff"/>
-                            <ellipse cx="48" cy="58" rx="4.5" ry="3.5" fill="#3D3D3A"/>
-                            <path d="M42 64 Q48 69 54 64" stroke="#3D3D3A" stroke-width="1.8" fill="none" stroke-linecap="round"/>
-                        </svg>
-                    </div>
+                    <div class="welcome-mascot">🦊</div>
                     <h1 class="welcome-title">你好，我是小码<span class="welcome-dot">.</span></h1>
                     <p class="welcome-desc">你的编程学习伙伴，陪你一起探索代码的世界。</p>
                 </div>`;
         }
 
+        loadSessions();
+    }
+
+    function getSessionName(sid) {
+        const names = JSON.parse(localStorage.getItem("pc_session_names") || "{}");
+        if (names[sid]) return names[sid];
+        return getFirstUserMessage(sid) || "(空会话)";
+    }
+
+    function saveSessionName(sid, name) {
+        const names = JSON.parse(localStorage.getItem("pc_session_names") || "{}");
+        names[sid] = name;
+        localStorage.setItem("pc_session_names", JSON.stringify(names));
+    }
+
+    function startRename(sid, e) {
+        e.stopPropagation();
+        const item = document.querySelector('.history-item[data-sid="' + sid + '"]');
+        if (!item) return;
+        const preview = item.querySelector(".history-preview");
+        if (!preview) return;
+        const oldName = getSessionName(sid);
+        const input = document.createElement("input");
+        input.type = "text";
+        input.value = oldName;
+        input.className = "rename-input";
+        input.maxLength = 30;
+        input.addEventListener("blur", () => finishRename(sid, input.value));
+        input.addEventListener("keydown", (ev) => {
+            if (ev.key === "Enter") finishRename(sid, input.value);
+            if (ev.key === "Escape") finishRename(sid, oldName);
+        });
+        preview.replaceWith(input);
+        input.focus();
+        input.select();
+    }
+
+    function finishRename(sid, name) {
+        const trimmed = name.trim();
+        if (trimmed) saveSessionName(sid, trimmed);
         loadSessions();
     }
 
@@ -506,16 +504,17 @@
 
         historyList.innerHTML = sessions.map(s => {
             const sid = s.session_id;
-            const preview = s._preview || getFirstUserMessage(sid) || "(空会话)";
+            const displayName = getSessionName(sid);
             const date = s.created_at
                 ? new Date(s.created_at).toLocaleDateString("zh-CN")
                 : "";
             const isActive = sid === sessionId ? " active" : "";
             return `
                 <div class="history-item${isActive}" data-sid="${sid}" onclick="window._switchSessionHandler('${sid}')">
-                    <span class="history-preview" title="${escapeHtml(preview)}">${escapeHtml(preview.substring(0, 25))}</span>
+                    <span class="history-preview" title="${escapeHtml(displayName)}">${escapeHtml(displayName.substring(0, 20))}</span>
+                    <button class="history-rename" title="重命名" onclick="window._renameHandler('${sid}', event)">✎</button>
                     <span class="history-date">${date}</span>
-                    <button class="history-delete" title="删除此会话" onclick="window._deleteSessionHandler('${sid}', event)">×</button>
+                    <button class="history-delete" title="删除" onclick="window._deleteSessionHandler('${sid}', event)">×</button>
                 </div>`;
         }).join("");
     }
@@ -614,5 +613,6 @@
     // 暴露到 window 供 onclick 属性调用（避免 addEventListener 的内存问题）
     window._switchSessionHandler = switchSession;
     window._deleteSessionHandler = deleteSession;
+    window._renameHandler = startRename;
     init();
 })();
