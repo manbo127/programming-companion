@@ -380,9 +380,23 @@
             // 清空聊天区
             chatMessages.innerHTML = `
                 <div class="welcome-banner">
-                    <div class="welcome-icon">🦊</div>
-                    <h2>新对话开始了！</h2>
-                    <p>有什么我可以帮你的吗？</p>
+                    <div class="welcome-mascot">
+                        <svg width="96" height="96" viewBox="0 0 96 96" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <ellipse cx="48" cy="52" rx="38" ry="34" fill="#E8D5C4"/>
+                            <polygon points="18,24 12,4 30,18" fill="#CC785C"/>
+                            <polygon points="78,24 84,4 66,18" fill="#CC785C"/>
+                            <polygon points="18,24 16,10 28,20" fill="#E8C8B0"/>
+                            <polygon points="78,24 80,10 68,20" fill="#E8C8B0"/>
+                            <ellipse cx="36" cy="50" rx="5" ry="5.5" fill="#141413"/>
+                            <ellipse cx="60" cy="50" rx="5" ry="5.5" fill="#141413"/>
+                            <circle cx="37.5" cy="48" r="1.6" fill="#fff"/>
+                            <circle cx="61.5" cy="48" r="1.6" fill="#fff"/>
+                            <ellipse cx="48" cy="58" rx="4.5" ry="3.5" fill="#3D3D3A"/>
+                            <path d="M42 64 Q48 69 54 64" stroke="#3D3D3A" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+                        </svg>
+                    </div>
+                    <h1 class="welcome-title">新对话开始了<span class="welcome-dot">.</span></h1>
+                    <p class="welcome-desc">有什么我可以帮你的吗？</p>
                 </div>`;
 
             saveChat();
@@ -417,9 +431,23 @@
                 // 都没有就显示欢迎页
                 chatMessages.innerHTML = `
                     <div class="welcome-banner">
-                        <div class="welcome-icon">🦊</div>
-                        <h2>切换到这个会话</h2>
-                        <p>聊天记录为空</p>
+                        <div class="welcome-mascot">
+                            <svg width="96" height="96" viewBox="0 0 96 96" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <ellipse cx="48" cy="52" rx="38" ry="34" fill="#E8D5C4"/>
+                                <polygon points="18,24 12,4 30,18" fill="#CC785C"/>
+                                <polygon points="78,24 84,4 66,18" fill="#CC785C"/>
+                                <polygon points="18,24 16,10 28,20" fill="#E8C8B0"/>
+                                <polygon points="78,24 80,10 68,20" fill="#E8C8B0"/>
+                                <ellipse cx="36" cy="50" rx="5" ry="5.5" fill="#141413"/>
+                                <ellipse cx="60" cy="50" rx="5" ry="5.5" fill="#141413"/>
+                                <circle cx="37.5" cy="48" r="1.6" fill="#fff"/>
+                                <circle cx="61.5" cy="48" r="1.6" fill="#fff"/>
+                                <ellipse cx="48" cy="58" rx="4.5" ry="3.5" fill="#3D3D3A"/>
+                                <path d="M42 64 Q48 69 54 64" stroke="#3D3D3A" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+                            </svg>
+                        </div>
+                        <h1 class="welcome-title">聊天记录为空<span class="welcome-dot">.</span></h1>
+                        <p class="welcome-desc">该会话没有保存的消息。</p>
                     </div>`;
             }
         }
@@ -445,9 +473,23 @@
             localStorage.removeItem("pc_session_id");
             chatMessages.innerHTML = `
                 <div class="welcome-banner">
-                    <div class="welcome-icon">🦊</div>
-                    <h2>你好！我是小码 👋</h2>
-                    <p>你的编程学习伙伴，陪你一起探索代码的世界。</p>
+                    <div class="welcome-mascot">
+                        <svg width="96" height="96" viewBox="0 0 96 96" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <ellipse cx="48" cy="52" rx="38" ry="34" fill="#E8D5C4"/>
+                            <polygon points="18,24 12,4 30,18" fill="#CC785C"/>
+                            <polygon points="78,24 84,4 66,18" fill="#CC785C"/>
+                            <polygon points="18,24 16,10 28,20" fill="#E8C8B0"/>
+                            <polygon points="78,24 80,10 68,20" fill="#E8C8B0"/>
+                            <ellipse cx="36" cy="50" rx="5" ry="5.5" fill="#141413"/>
+                            <ellipse cx="60" cy="50" rx="5" ry="5.5" fill="#141413"/>
+                            <circle cx="37.5" cy="48" r="1.6" fill="#fff"/>
+                            <circle cx="61.5" cy="48" r="1.6" fill="#fff"/>
+                            <ellipse cx="48" cy="58" rx="4.5" ry="3.5" fill="#3D3D3A"/>
+                            <path d="M42 64 Q48 69 54 64" stroke="#3D3D3A" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+                        </svg>
+                    </div>
+                    <h1 class="welcome-title">你好，我是小码<span class="welcome-dot">.</span></h1>
+                    <p class="welcome-desc">你的编程学习伙伴，陪你一起探索代码的世界。</p>
                 </div>`;
         }
 
