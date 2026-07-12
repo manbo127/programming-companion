@@ -545,13 +545,10 @@
 
     function togglePanel() {
         sidePanel.classList.toggle("collapsed");
-        const btn = btnTogglePanel;
         const toggleFloat = document.getElementById("btn-toggle-float");
         if (sidePanel.classList.contains("collapsed")) {
-            btn.textContent = "◀";
             if (toggleFloat) toggleFloat.style.display = "flex";
         } else {
-            btn.textContent = "▶";
             if (toggleFloat) toggleFloat.style.display = "none";
         }
     }

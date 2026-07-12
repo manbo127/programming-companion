@@ -4,89 +4,85 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>小码 — 编程学习智能学伴</title>
-    <link rel="stylesheet" href="/static/css/style.css?v=4">
+    <link rel="stylesheet" href="/static/css/style.css?v=5">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300..600&display=swap" rel="stylesheet">
 </head>
 <body>
-    <!-- ═══ 顶部导航栏 ═══ -->
+    <!-- ═══ 顶部导航 ═══ -->
     <header class="navbar">
-        <div class="nav-left">
-            <span class="logo">🦊</span>
-            <span class="app-title">小码 · 编程学伴</span>
+        <div class="nav-brand">
+            <span class="nav-logo">🦊</span>
+            <span class="nav-title">小码</span>
+            <span class="nav-subtitle">编程学伴</span>
         </div>
-        <div class="nav-right">
-            <button id="btn-new-session" class="btn-nav" title="新建会话">＋ 新对话</button>
-            <select id="session-selector" class="session-selector">
+        <div class="nav-actions">
+            <select id="session-selector" class="nav-select">
                 <option value="">当前会话</option>
             </select>
+            <button id="btn-new-session" class="btn btn-outline">＋ 新对话</button>
+            <button id="btn-toggle-panel" class="btn btn-ghost btn-panel-toggle">☰</button>
         </div>
     </header>
 
-    <!-- ═══ 主内容区 ═══ -->
+    <!-- ═══ 主体 ═══ -->
     <div class="main-container">
-        <!-- 左侧：对话区 -->
-        <div class="chat-panel" id="chat-panel">
+        <!-- 左侧：对话 -->
+        <main class="chat-panel" id="chat-panel">
             <div class="chat-messages" id="chat-messages">
-                <!-- 欢迎消息 -->
                 <div class="welcome-banner">
-                    <div class="welcome-icon">🦊</div>
-                    <h2>你好！我是小码 👋</h2>
-                    <p>你的编程学习伙伴，陪你一起探索代码的世界。</p>
-                    <div class="welcome-tips">
-                        <p>你可以这样问我：</p>
-                        <div class="tip-chips">
-                            <button class="tip-chip" data-message="我的代码报错了，能帮我看看吗？">🐛 帮我看看报错</button>
-                            <button class="tip-chip" data-message="请问怎么判断一个数是不是素数？">💡 解题思路引导</button>
-                            <button class="tip-chip" data-message="什么是递归？">📚 解释知识点</button>
-                            <button class="tip-chip" data-message="你好！我刚学Python，从哪里开始比较好？">💬 随便聊聊</button>
-                        </div>
+                    <p class="welcome-eyebrow">编程学习智能学伴</p>
+                    <h1 class="welcome-title">你好，我是小码<span class="welcome-dot">.</span></h1>
+                    <p class="welcome-desc">你的编程学习伙伴。<br/>不直接给答案，陪你一起想。</p>
+                    <div class="welcome-chips">
+                        <button class="chip" data-message="我的代码报错了，能帮我看看吗？">
+                            <span class="chip-icon">🐛</span>帮我看看报错
+                        </button>
+                        <button class="chip" data-message="请问怎么判断一个数是不是素数？">
+                            <span class="chip-icon">💡</span>解题思路引导
+                        </button>
+                        <button class="chip" data-message="什么是递归？">
+                            <span class="chip-icon">📚</span>解释知识点
+                        </button>
+                        <button class="chip" data-message="你好！我刚学Python，从哪里开始比较好？">
+                            <span class="chip-icon">💬</span>随便聊聊
+                        </button>
                     </div>
                 </div>
             </div>
 
-            <!-- 底部输入区 -->
+            <!-- 输入区 -->
             <div class="chat-input-area">
                 <div class="input-row">
-                    <textarea
-                        id="message-input"
-                        class="message-input"
-                        placeholder="输入你的问题..."
-                        rows="2"
-                        autofocus
-                    ></textarea>
-                    <button id="btn-send" class="btn-send" title="发送 (Ctrl+Enter)">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M22 2L11 13"/>
-                            <path d="M22 2L15 22L11 13L2 9L22 2Z"/>
+                    <textarea id="message-input" class="message-input"
+                        placeholder="输入你的问题…" rows="2" autofocus></textarea>
+                    <button id="btn-send" class="btn btn-primary btn-send" title="发送">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="12" y1="19" x2="12" y2="5"/>
+                            <polyline points="5 12 12 5 19 12"/>
                         </svg>
                     </button>
                 </div>
                 <div class="input-hint">Enter 发送 · Shift+Enter 换行</div>
             </div>
-        </div>
+        </main>
 
-        <!-- 右侧面板 -->
+        <!-- 右侧：工具面板 -->
         <aside class="side-panel" id="side-panel">
-            <div class="panel-header">
-                <h3>📋 工具面板</h3>
-                <button id="btn-toggle-panel" class="btn-icon" title="收起面板">◀</button>
-            </div>
-
-            <!-- 历史会话（置顶） -->
-            <div class="panel-section history-section">
+            <div class="panel-section">
                 <div class="section-header">
                     <span class="panel-label">💬 历史会话</span>
-                    <button id="btn-clear-inputs" class="btn-clear-inline">清除输入</button>
+                    <button id="btn-clear-inputs" class="btn btn-ghost btn-sm">清除输入</button>
                 </div>
                 <div id="history-list" class="history-list">
                     <div class="history-empty">暂无历史会话</div>
                 </div>
             </div>
 
-            <!-- 分隔 -->
             <div class="panel-divider"></div>
 
-            <!-- 快捷场景 -->
-            <div class="panel-section quick-actions">
+            <div class="panel-section">
                 <span class="panel-label">⚡ 快捷场景</span>
                 <div class="action-chips">
                     <button class="action-chip" data-mode="error">🐛 代码报错</button>
@@ -96,49 +92,27 @@
                 </div>
             </div>
 
-            <!-- 代码输入（可折叠） -->
+            <div class="panel-divider"></div>
+
             <div class="panel-section collapsible-section">
                 <div class="section-header collapsible-header" id="code-section-toggle">
-                    <span class="panel-label">💻 代码 & 错误信息</span>
-                    <span class="collapse-arrow">▼</span>
+                    <span class="panel-label">💻 代码 & 错误</span>
+                    <span class="collapse-arrow">▾</span>
                 </div>
                 <div class="collapsible-body" id="code-section-body">
-                    <label for="code-input" class="panel-label sub-label">代码（可选）</label>
-                    <textarea
-                        id="code-input"
-                        class="code-input"
-                        placeholder="在这里粘贴你的代码..."
-                        rows="6"
-                        spellcheck="false"
-                    ></textarea>
-                    <label for="error-input" class="panel-label sub-label">错误信息（可选）</label>
-                    <textarea
-                        id="error-input"
-                        class="error-input"
-                        placeholder="在这里粘贴错误信息..."
-                        rows="4"
-                        spellcheck="false"
-                    ></textarea>
+                    <textarea id="code-input" class="code-input"
+                        placeholder="粘贴你的代码…" rows="5" spellcheck="false"></textarea>
+                    <textarea id="error-input" class="error-input"
+                        placeholder="粘贴报错信息…" rows="3" spellcheck="false"></textarea>
                 </div>
             </div>
         </aside>
     </div>
 
-    <!-- 面板折叠后的浮动打开按钮 -->
-    <button id="btn-toggle-float" class="btn-toggle-float" title="展开工具面板" style="display:none;" onclick="document.getElementById('side-panel').classList.remove('collapsed'); this.style.display='none'; document.getElementById('btn-toggle-panel').textContent='▶';">◀</button>
+    <!-- 面板浮动按钮 -->
+    <button id="btn-toggle-float" class="btn-toggle-float" title="展开面板" style="display:none;"
+        onclick="document.getElementById('side-panel').classList.remove('collapsed');this.style.display='none';document.getElementById('btn-toggle-panel').textContent='☰';">☰</button>
 
-    <!-- ═══ 打字动画模板（隐藏） ═══ -->
-    <template id="typing-template">
-        <div class="message typing">
-            <div class="avatar bot-avatar">🦊</div>
-            <div class="bubble typing-bubble">
-                <span class="dot"></span>
-                <span class="dot"></span>
-                <span class="dot"></span>
-            </div>
-        </div>
-    </template>
-
-    <script src="/static/js/chat.js?v=4"></script>
+    <script src="/static/js/chat.js?v=5"></script>
 </body>
 </html>
