@@ -187,17 +187,19 @@ body {
 /* Welcome */
 .welcome-banner {
     text-align: center;
-    padding: 60px 24px 40px;
+    padding: 48px 24px 32px;
     animation: fadeUp 0.6s ease;
 }
 
-.welcome-eyebrow {
-    font-size: 12px;
-    font-weight: 500;
-    letter-spacing: 2px;
-    text-transform: uppercase;
-    color: var(--muted);
-    margin-bottom: 16px;
+.welcome-mascot {
+    margin-bottom: 24px;
+    display: flex;
+    justify-content: center;
+}
+
+.welcome-mascot svg {
+    filter: drop-shadow(0 4px 16px rgba(204, 120, 92, 0.15));
+    animation: floatIn 0.7s ease;
 }
 
 .welcome-title {
@@ -215,7 +217,7 @@ body {
     font-size: 17px;
     color: var(--muted);
     line-height: 1.6;
-    margin-bottom: 32px;
+    margin-bottom: 36px;
 }
 
 .welcome-chips {
@@ -534,6 +536,11 @@ body {
 @keyframes fadeUp {
     from { opacity: 0; transform: translateY(10px); }
     to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes floatIn {
+    from { opacity: 0; transform: translateY(16px) scale(0.92); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 @keyframes dotPulse {
