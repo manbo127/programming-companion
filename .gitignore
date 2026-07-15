@@ -36,4 +36,5 @@ instance/*.db-shm
 
 # Reasonix / Codex 本地元数据与临时渲染
 .reasonix/
+.vercel/
 tmp_architecture_render.html
