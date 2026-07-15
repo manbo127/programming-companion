@@ -18,9 +18,23 @@ venv/
 .venv/
 *.egg-info/
 dist/
+.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
 
 # 数据（含 API 调用记录）
 data/conversations/*.json
 
-.vercel
-.env*
+# SQLite
+instance/*.db
+instance/*.db-wal
+instance/*.db-shm
+*.db
+*.db-wal
+*.db-shm
+
+# Reasonix / Codex 本地元数据与临时渲染
+.reasonix/
+.vercel/
+tmp_architecture_render.html

@@ -1,618 +1,263 @@
-/*
- * 小码编程学伴 — 聊天交互逻辑
- * 零依赖，纯原生 JS
- */
-
 (function () {
-    "use strict";
+  const messagesEl = document.getElementById("chat-messages");
+  const messageInput = document.getElementById("message-input");
+  const codeInput = document.getElementById("code-input");
+  const errorInput = document.getElementById("error-input");
+  const languageHint = document.getElementById("language-hint");
+  const btnSend = document.getElementById("btn-send");
+  const inputCount = document.getElementById("input-count");
+  const codeCount = document.getElementById("code-count");
+  const errorCount = document.getElementById("error-count");
+  const contextSummary = document.getElementById("context-summary");
+  const contextSummaryText = document.getElementById("context-summary-text");
 
-    // ── DOM 引用 ──────────────────────────────────────────
-    const chatMessages = document.getElementById("chat-messages");
-    const messageInput = document.getElementById("message-input");
-    const codeInput = document.getElementById("code-input");
-    const errorInput = document.getElementById("error-input");
-    const btnSend = document.getElementById("btn-send");
-    const btnNewSession = document.getElementById("btn-new-session");
-    const btnTogglePanel = document.getElementById("btn-toggle-panel");
-    const btnClearInputs = document.getElementById("btn-clear-inputs");
-    const sessionSelector = document.getElementById("session-selector");
-    const sidePanel = document.getElementById("side-panel");
-    const historyList = document.getElementById("history-list");
+  function createMessageElement(role, text, code = "", error = "", sources = [], diagnosis = null) {
+    const article = document.createElement("article");
+    article.className = `message ${role}`;
 
-    // ── 状态 ──────────────────────────────────────────────
-    let sessionId = localStorage.getItem("pc_session_id") || "";
-    let isLoading = false;
-    const STORAGE_PREFIX = "pc_session_";  // localStorage 键前缀
-    const SESSIONS_INDEX_KEY = "pc_sessions_index";
+    const avatar = document.createElement("div");
+    avatar.className = "message-avatar";
+    avatar.setAttribute("aria-hidden", "true");
+    avatar.textContent = role === "bot" ? "码" : "我";
 
-    // ── 初始化 ────────────────────────────────────────────
-    function init() {
-        bindEvents();
-        loadSessions();
-        restoreChat();  // 从 localStorage 恢复当前会话的聊天记录
+    const content = document.createElement("div");
+    content.className = "message-content";
+    content.innerHTML = Markdown.render(text || "");
+
+    if (code) {
+      const pre = document.createElement("pre");
+      pre.className = "code-block";
+      const codeEl = document.createElement("code");
+      codeEl.textContent = code;
+      pre.appendChild(codeEl);
+      content.appendChild(pre);
     }
 
-    function bindEvents() {
-        // 发送按钮
-        btnSend.addEventListener("click", handleSend);
-        // Enter 发送，Shift+Enter 换行
-        messageInput.addEventListener("keydown", (e) => {
-            if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                handleSend();
-            }
-        });
-
-        // 新建会话
-        btnNewSession.addEventListener("click", handleNewSession);
-
-        // 侧边栏切换
-        btnTogglePanel.addEventListener("click", togglePanel);
-
-        // 清除输入
-        btnClearInputs.addEventListener("click", clearInputs);
-
-        // 会话切换
-        sessionSelector.addEventListener("change", (e) => {
-            if (e.target.value) {
-                switchSession(e.target.value);
-            }
-        });
-
-        // 欢迎提示 chips
-        document.querySelectorAll(".tip-chip").forEach((chip) => {
-            chip.addEventListener("click", () => {
-                messageInput.value = chip.dataset.message;
-                messageInput.focus();
-            });
-        });
-
-        // 快捷场景 chips — 点击展开代码区并设置场景提示
-        document.querySelectorAll(".action-chip").forEach((chip) => {
-            chip.addEventListener("click", () => {
-                document.querySelectorAll(".action-chip").forEach(c => c.classList.remove("active"));
-                chip.classList.add("active");
-                const mode = chip.dataset.mode;
-                if (mode === "error" && !messageInput.value) {
-                    messageInput.value = "我的代码报错了，能帮我看看吗？";
-                } else if (mode === "guidance" && !messageInput.value) {
-                    messageInput.value = "这道题怎么做？";
-                } else if (mode === "knowledge" && !messageInput.value) {
-                    messageInput.value = "什么是";
-                }
-                messageInput.focus();
-                // 展开代码区
-                const codeBody = document.getElementById("code-section-body")?.parentElement;
-                if (codeBody) codeBody.classList.remove("collapsed");
-            });
-        });
-
-        // 代码输入区折叠切换
-        const codeToggle = document.getElementById("code-section-toggle");
-        const codeBody = document.getElementById("code-section-body")?.parentElement;
-        if (codeToggle && codeBody) {
-            codeToggle.addEventListener("click", () => {
-                codeBody.classList.toggle("collapsed");
-            });
-        }
+    if (error) {
+      const pre = document.createElement("pre");
+      pre.className = "error-block";
+      const codeEl = document.createElement("code");
+      codeEl.textContent = error;
+      pre.appendChild(codeEl);
+      content.appendChild(pre);
     }
 
-    // ── 发送消息 ──────────────────────────────────────────
-    async function handleSend() {
-        if (isLoading) return;
+    if (role === "bot" && diagnosis && diagnosis.error_type) {
+      const panel = document.createElement("aside");
+      panel.className = "message-diagnosis";
+      const heading = document.createElement("strong");
+      heading.textContent = `${diagnosis.category || "错误诊断"} · ${diagnosis.error_type}`;
+      const location = document.createElement("span");
+      location.textContent = diagnosis.location || "报错位置未明确";
+      const check = document.createElement("p");
+      check.textContent = `先检查：${diagnosis.first_check || "结合调用栈定位自己的代码"}`;
+      panel.append(heading, location, check);
+      content.appendChild(panel);
+    }
 
-        const message = messageInput.value.trim();
-        const code = codeInput.value.trim();
-        const error = errorInput.value.trim();
+    if (role === "bot" && Array.isArray(sources) && sources.length) {
+      const references = document.createElement("aside");
+      references.className = "message-sources";
+      const label = document.createElement("strong");
+      label.textContent = "参考资料";
+      references.appendChild(label);
+      const list = document.createElement("ul");
+      sources.forEach(source => {
+        if (!source || !/^https:\/\//.test(source.url || "")) return;
+        const item = document.createElement("li");
+        const link = document.createElement("a");
+        link.href = source.url;
+        link.target = "_blank";
+        link.rel = "noopener noreferrer";
+        link.textContent = source.source_title || source.title || "官方文档";
+        item.appendChild(link);
+        list.appendChild(item);
+      });
+      if (list.childElementCount) {
+        references.appendChild(list);
+        content.appendChild(references);
+      }
+    }
 
-        if (!message && !code && !error) return;
+    article.append(avatar, content);
+    return article;
+  }
 
-        // 禁用输入
-        isLoading = true;
-        btnSend.disabled = true;
-        messageInput.disabled = true;
+  function appendBubble(role, text, code = "", error = "", sources = [], diagnosis = null) {
+    removeEmptyState();
+    const element = createMessageElement(role, text, code, error, sources, diagnosis);
+    messagesEl.appendChild(element);
+    scrollToBottom();
+    return element;
+  }
 
-        // 移除欢迎横幅
-        const welcome = document.querySelector(".welcome-banner");
-        if (welcome) welcome.remove();
+  function appendMotivation(text) {
+    if (!text) return;
+    const note = document.createElement("div");
+    note.className = "motivation-note";
+    note.textContent = text;
+    messagesEl.appendChild(note);
+    scrollToBottom();
+  }
 
-        // 渲染用户消息
-        const userContent = buildUserDisplay(message, code, error);
-        appendMessage("user", userContent);
-
-        // 清空输入
-        messageInput.value = "";
-        codeInput.value = "";
-        errorInput.value = "";
-
-        // 显示打字动画
-        const typingEl = showTyping();
-
-        try {
-            const response = await fetch("/api/chat", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    message: message,
-                    code: code,
-                    error: error,
-                    session_id: sessionId,
-                }),
-            });
-
-            const data = await response.json();
-
-            // 隐藏打字动画
-            hideTyping(typingEl);
-
-            if (data.error && !data.reply) {
-                appendMessage("bot", "❌ " + data.error);
-            } else {
-                appendMessage("bot", data.reply);
-            }
-
-            // 更新 session_id
-            if (data.session_id) {
-                sessionId = data.session_id;
-                localStorage.setItem("pc_session_id", sessionId);
-                loadSessions();
-            }
-        } catch (err) {
-            hideTyping(typingEl);
-            appendMessage("bot", "😥 抱歉，网络连接出现了问题。请检查网络后重试。\n\n*（确认 config.py 中已设置正确的 DEEPSEEK_API_KEY）*");
-        }
-
-        // 恢复输入
-        isLoading = false;
-        btnSend.disabled = false;
-        messageInput.disabled = false;
+  function renderEmptyState() {
+    messagesEl.replaceChildren();
+    const template = document.getElementById("empty-state-template");
+    messagesEl.appendChild(template.content.cloneNode(true));
+    messagesEl.querySelectorAll(".suggestion-card").forEach(button => {
+      button.addEventListener("click", () => {
+        messageInput.value = button.dataset.message || "";
+        updateCounts();
+        resizeMessageInput();
         messageInput.focus();
+      });
+    });
+  }
+
+  function removeEmptyState() {
+    messagesEl.querySelector(".empty-state")?.remove();
+  }
+
+  function renderMessages(messages) {
+    messagesEl.replaceChildren();
+    if (!messages.length) {
+      renderEmptyState();
+      return;
     }
+    messages.forEach(message => {
+      appendBubble(message.role === "assistant" ? "bot" : "user", message.content, message.code, message.error_text, message.sources, message.diagnosis);
+      if (message.role === "assistant" && message.motivation_text) appendMotivation(message.motivation_text);
+    });
+    scrollToBottom(false);
+  }
 
-    // ── 消息渲染 ──────────────────────────────────────────
-    function buildUserDisplay(message, code, error) {
-        const parts = [];
-        if (message) parts.push("<p>" + escapeHtml(message) + "</p>");
-        if (code) {
-            parts.push(
-                '<div class="code-block-label">💻 代码</div>' +
-                "<pre><code>" + escapeHtml(code) + "</code></pre>"
-            );
-        }
-        if (error) {
-            parts.push(
-                '<div class="code-block-label">⚠️ 错误信息</div>' +
-                "<pre><code>" + escapeHtml(error) + "</code></pre>"
-            );
-        }
-        return parts.join("");
+  function showTyping() {
+    hideTyping();
+    removeEmptyState();
+    const article = document.createElement("article");
+    article.id = "typing-indicator";
+    article.className = "message bot typing";
+    article.innerHTML = `
+      <div class="message-avatar" aria-hidden="true">码</div>
+      <div class="message-content" aria-label="小码正在思考">
+        <div class="typing-lines"><span></span><span></span><span></span></div>
+      </div>`;
+    messagesEl.appendChild(article);
+    scrollToBottom();
+  }
+
+  function hideTyping() {
+    document.getElementById("typing-indicator")?.remove();
+  }
+
+  function setLoading(loading) {
+    State.isLoading = loading;
+    btnSend.disabled = loading;
+    messageInput.disabled = loading;
+    btnSend.setAttribute("aria-label", loading ? "正在等待回复" : "发送消息");
+  }
+
+  async function sendMessage() {
+    const text = messageInput.value.trim();
+    const code = codeInput.value.trim();
+    const error = errorInput.value.trim();
+    if ((!text && !code && !error) || State.isLoading) return;
+
+    if (!State.currentConversationId) {
+      await Conversations.ensureSession(text, code, error);
     }
+    if (!State.currentConversationId) return;
 
-    function appendMessage(role, content) {
-        const div = document.createElement("div");
-        div.className = "message " + role;
+    setLoading(true);
+    appendBubble("user", text, code, error);
+    messageInput.value = "";
+    codeInput.value = "";
+    errorInput.value = "";
+    updateCounts();
+    updateContextSummary();
+    resizeMessageInput();
+    showTyping();
 
-        if (role === "user") {
-            div.innerHTML =
-                '<div class="avatar user-avatar">🧑</div>' +
-                '<div class="bubble user-bubble">' + content + "</div>";
-        } else {
-            const htmlContent = renderMarkdown(content);
-            div.innerHTML =
-                '<div class="avatar bot-avatar">🦊</div>' +
-                '<div class="bubble bot-bubble">' + htmlContent + "</div>";
-        }
-
-        chatMessages.appendChild(div);
-        scrollToBottom();
-        // 自动保存到 localStorage
-        saveChat();
+    try {
+      const result = await API.sendMessage(State.currentConversationId, {
+        message: text,
+        code,
+        error,
+        scene_hint: State.sceneHint,
+        language_hint: languageHint.value,
+        client_message_id: crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`,
+      });
+      hideTyping();
+      appendBubble("bot", result.reply, "", "", result.sources, result.diagnosis);
+      appendMotivation(result.motivation);
+      await Conversations.loadSessions();
+    } catch (errorObject) {
+      hideTyping();
+      UI.toast(errorObject.message || "暂时无法获取回复，请稍后重试", "error");
+      appendBubble("bot", "这次请求没有成功。你的问题已经保留，可以稍后重新发送。 ");
+    } finally {
+      setLoading(false);
+      messageInput.focus();
     }
+  }
 
-    function renderServerMessages(messages) {
-        // 用服务器返回的消息列表重新渲染聊天区
-        const welcome = document.querySelector(".welcome-banner");
-        if (welcome) welcome.remove();
+  function clearInputs() {
+    messageInput.value = "";
+    codeInput.value = "";
+    errorInput.value = "";
+    languageHint.value = "";
+    State.languageHint = "";
+    updateCounts();
+    updateContextSummary();
+    resizeMessageInput();
+    messageInput.focus();
+  }
 
-        // 清除现有消息（保留欢迎横幅除外）
-        const existing = chatMessages.querySelectorAll(".message");
-        existing.forEach(el => el.remove());
+  function updateContextSummary() {
+    const parts = [];
+    if (codeInput.value.trim()) parts.push(`已添加 ${codeInput.value.trim().split("\n").length} 行代码`);
+    if (errorInput.value.trim()) parts.push("已添加报错信息");
+    if (languageHint.value) parts.push(languageHint.options[languageHint.selectedIndex].text);
+    contextSummary.hidden = parts.length === 0;
+    contextSummaryText.textContent = parts.join("，");
+  }
 
-        messages.forEach(msg => {
-            if (msg.role === "user") {
-                appendMessageSilent("user", msg.content);
-            } else if (msg.role === "assistant") {
-                appendMessageSilent("bot", msg.content);
-            }
-        });
-        saveChat();
+  function updateCounts() {
+    inputCount.textContent = `${messageInput.value.length} / 5000`;
+    codeCount.textContent = `${codeInput.value.length} / 10000`;
+    errorCount.textContent = `${errorInput.value.length} / 5000`;
+  }
+
+  function resizeMessageInput() {
+    messageInput.style.height = "auto";
+    messageInput.style.height = `${Math.min(messageInput.scrollHeight, 180)}px`;
+  }
+
+  function scrollToBottom(smooth = true) {
+    messagesEl.scrollTo({ top: messagesEl.scrollHeight, behavior: smooth ? "smooth" : "auto" });
+  }
+
+  btnSend.addEventListener("click", sendMessage);
+  messageInput.addEventListener("keydown", event => {
+    if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
+      event.preventDefault();
+      sendMessage();
     }
+  });
+  messageInput.addEventListener("input", () => { updateCounts(); resizeMessageInput(); });
+  codeInput.addEventListener("input", () => { updateCounts(); updateContextSummary(); });
+  errorInput.addEventListener("input", () => { updateCounts(); updateContextSummary(); });
+  languageHint.addEventListener("change", () => { State.languageHint = languageHint.value; updateContextSummary(); });
 
-    function appendMessageSilent(role, content) {
-        // 不带自动保存的 appendMessage（用于批量渲染，最后统一保存）
-        const div = document.createElement("div");
-        div.className = "message " + role;
-
-        if (role === "user") {
-            div.innerHTML =
-                '<div class="avatar user-avatar">🧑</div>' +
-                '<div class="bubble user-bubble">' + content + "</div>";
-        } else {
-            const htmlContent = renderMarkdown(content);
-            div.innerHTML =
-                '<div class="avatar bot-avatar">🦊</div>' +
-                '<div class="bubble bot-bubble">' + htmlContent + "</div>";
-        }
-
-        chatMessages.appendChild(div);
-        scrollToBottom();
-    }
-
-    // ── Markdown 渲染（纯 JS，零依赖）───────────────────
-    function renderMarkdown(text) {
-        if (!text) return "";
-
-        let html = escapeHtml(text);
-
-        // 代码块 ```lang\ncode\n```
-        html = html.replace(/```(\w*)\n?([\s\S]*?)```/g, (_, lang, code) => {
-            return "<pre><code>" + code.trim() + "</code></pre>";
-        });
-
-        // 行内代码 `code`
-        html = html.replace(/`([^`]+)`/g, "<code>$1</code>");
-
-        // 粗体 **text**
-        html = html.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
-
-        // 斜体 *text*
-        html = html.replace(/\*([^*]+)\*/g, "<em>$1</em>");
-
-        // 分隔线 ---
-        html = html.replace(/^---$/gm, "<hr>");
-
-        // 无序列表 - item 或 * item
-        html = html.replace(/^[\-\*] (.+)$/gm, "<li>$1</li>");
-        html = html.replace(/(<li>.*<\/li>)/s, "<ul>$1</ul>");
-
-        // 换行
-        html = html.replace(/\n\n/g, "</p><p>");
-        html = html.replace(/\n/g, "<br>");
-
-        // 包裹段落
-        html = "<p>" + html + "</p>";
-
-        // 清理空段落
-        html = html.replace(/<p><\/p>/g, "");
-
-        return html;
-    }
-
-    // ── 打字动画 ──────────────────────────────────────────
-    function showTyping() {
-        const div = document.createElement("div");
-        div.className = "message bot";
-        div.innerHTML =
-            '<div class="avatar bot-avatar">🦊</div>' +
-            '<div class="bubble typing-bubble">' +
-            '<span class="dot"></span><span class="dot"></span><span class="dot"></span>' +
-            "</div>";
-        chatMessages.appendChild(div);
-        scrollToBottom();
-        return div;
-    }
-
-    function hideTyping(el) {
-        if (el && el.parentNode) {
-            el.remove();
-        }
-    }
-
-    // ── localStorage 持久化 ───────────────────────────────
-    function saveChat() {
-        // 保存当前页面的聊天 HTML 内容到 localStorage
-        if (!sessionId) return;
-        const messagesHtml = chatMessages.innerHTML;
-        localStorage.setItem(STORAGE_PREFIX + sessionId, messagesHtml);
-        // 更新会话索引
-        updateSessionsIndex();
-    }
-
-    function restoreChat() {
-        // 从 localStorage 恢复当前会话的聊天记录
-        if (!sessionId) return;
-        const saved = localStorage.getItem(STORAGE_PREFIX + sessionId);
-        if (saved) {
-            chatMessages.innerHTML = saved;
-            scrollToBottom();
-        }
-    }
-
-    function updateSessionsIndex() {
-        // 维护所有本地会话的索引（用于下拉列表）
-        if (!sessionId) return;
-        let index = {};
-        try {
-            index = JSON.parse(localStorage.getItem(SESSIONS_INDEX_KEY) || "{}");
-        } catch (e) { /* ignore */ }
-        index[sessionId] = {
-            updated_at: new Date().toISOString(),
-            first_message: getFirstUserMessage(sessionId),
-        };
-        localStorage.setItem(SESSIONS_INDEX_KEY, JSON.stringify(index));
-    }
-
-    function getFirstUserMessage(sid) {
-        // 从保存的 HTML 中提取第一条用户消息用于会话摘要
-        try {
-            const html = localStorage.getItem(STORAGE_PREFIX + sid);
-            if (!html) return "";
-            const match = html.match(/<div class="bubble user-bubble">([\s\S]*?)<\/div>/);
-            if (match) {
-                let text = match[1].replace(/<[^>]+>/g, "").trim();
-                return text.substring(0, 30);
-            }
-        } catch (e) { /* ignore */ }
-        return "";
-    }
-
-    function deleteLocalSession(sid) {
-        localStorage.removeItem(STORAGE_PREFIX + sid);
-        let index = {};
-        try {
-            index = JSON.parse(localStorage.getItem(SESSIONS_INDEX_KEY) || "{}");
-        } catch (e) { /* ignore */ }
-        delete index[sid];
-        localStorage.setItem(SESSIONS_INDEX_KEY, JSON.stringify(index));
-    }
-
-    // ── 会话管理 ──────────────────────────────────────────
-    async function handleNewSession() {
-        // 先保存当前会话
-        saveChat();
-
-        try {
-            const res = await fetch("/api/sessions/new", { method: "POST" });
-            const data = await res.json();
-            sessionId = data.session_id;
-            localStorage.setItem("pc_session_id", sessionId);
-
-            // 清空聊天区
-            chatMessages.innerHTML = `
-                <div class="welcome-banner">
-                    <div class="welcome-mascot">🦊</div>
-                    <h1 class="welcome-title">新对话开始了<span class="welcome-dot">.</span></h1>
-                    <p class="welcome-desc">有什么我可以帮你的吗？</p>
-                </div>`;
-
-            saveChat();
-            clearInputs();
-            loadSessions();
-        } catch (err) {
-            console.error("新建会话失败:", err);
-        }
-    }
-
-    async function switchSession(sid) {
-        if (sid === sessionId) return;
-        // 先保存当前会话
-        saveChat();
-        sessionId = sid;
-        localStorage.setItem("pc_session_id", sessionId);
-
-        // 先尝试从 localStorage 恢复
-        const saved = localStorage.getItem(STORAGE_PREFIX + sessionId);
-        if (saved) {
-            chatMessages.innerHTML = saved;
-            scrollToBottom();
-        } else {
-            // localStorage 没有，尝试从服务器加载
-            try {
-                const res = await fetch("/api/sessions/" + sid);
-                const data = await res.json();
-                if (data.messages && data.messages.length > 0) {
-                    renderServerMessages(data.messages);
-                }
-            } catch (err) {
-                // 都没有就显示欢迎页
-                chatMessages.innerHTML = `
-                    <div class="welcome-banner">
-                        <div class="welcome-mascot">🦊</div>
-                        <h1 class="welcome-title">聊天记录为空<span class="welcome-dot">.</span></h1>
-                        <p class="welcome-desc">该会话没有保存的消息。</p>
-                    </div>`;
-            }
-        }
-
-        loadSessions();
-    }
-
-    async function deleteSession(sid, e) {
-        e.stopPropagation();  // 防止触发切换
-        if (!confirm("确定删除这个会话吗？")) return;
-
-        // 从 localStorage 删除
-        deleteLocalSession(sid);
-
-        // 从服务器删除
-        try {
-            await fetch("/api/sessions/" + sid, { method: "DELETE" });
-        } catch (err) { /* ignore */ }
-
-        // 如果删除的是当前会话，创建新会话
-        if (sid === sessionId) {
-            sessionId = "";
-            localStorage.removeItem("pc_session_id");
-            chatMessages.innerHTML = `
-                <div class="welcome-banner">
-                    <div class="welcome-mascot">🦊</div>
-                    <h1 class="welcome-title">你好，我是小码<span class="welcome-dot">.</span></h1>
-                    <p class="welcome-desc">你的编程学习伙伴，陪你一起探索代码的世界。</p>
-                </div>`;
-        }
-
-        loadSessions();
-    }
-
-    function getSessionName(sid) {
-        const names = JSON.parse(localStorage.getItem("pc_session_names") || "{}");
-        if (names[sid]) return names[sid];
-        return getFirstUserMessage(sid) || "(空会话)";
-    }
-
-    function saveSessionName(sid, name) {
-        const names = JSON.parse(localStorage.getItem("pc_session_names") || "{}");
-        names[sid] = name;
-        localStorage.setItem("pc_session_names", JSON.stringify(names));
-    }
-
-    function startRename(sid, e) {
-        e.stopPropagation();
-        const item = document.querySelector('.history-item[data-sid="' + sid + '"]');
-        if (!item) return;
-        const preview = item.querySelector(".history-preview");
-        if (!preview) return;
-        const oldName = getSessionName(sid);
-        const input = document.createElement("input");
-        input.type = "text";
-        input.value = oldName;
-        input.className = "rename-input";
-        input.maxLength = 30;
-        input.addEventListener("blur", () => finishRename(sid, input.value));
-        input.addEventListener("keydown", (ev) => {
-            if (ev.key === "Enter") finishRename(sid, input.value);
-            if (ev.key === "Escape") finishRename(sid, oldName);
-        });
-        preview.replaceWith(input);
-        input.focus();
-        input.select();
-    }
-
-    function finishRename(sid, name) {
-        const trimmed = name.trim();
-        if (trimmed) saveSessionName(sid, trimmed);
-        loadSessions();
-    }
-
-    function renderHistoryList(sessions) {
-        if (!historyList) return;
-
-        if (sessions.length === 0) {
-            historyList.innerHTML = '<div class="history-empty">暂无历史会话</div>';
-            return;
-        }
-
-        historyList.innerHTML = sessions.map(s => {
-            const sid = s.session_id;
-            const displayName = getSessionName(sid);
-            const date = s.created_at
-                ? new Date(s.created_at).toLocaleDateString("zh-CN")
-                : "";
-            const isActive = sid === sessionId ? " active" : "";
-            return `
-                <div class="history-item${isActive}" data-sid="${sid}" onclick="window._switchSessionHandler('${sid}')">
-                    <span class="history-preview" title="${escapeHtml(displayName)}">${escapeHtml(displayName.substring(0, 20))}</span>
-                    <button class="history-rename" title="重命名" onclick="window._renameHandler('${sid}', event)">✎</button>
-                    <span class="history-date">${date}</span>
-                    <button class="history-delete" title="删除" onclick="window._deleteSessionHandler('${sid}', event)">×</button>
-                </div>`;
-        }).join("");
-    }
-
-    async function loadSessions() {
-        // 合并服务器会话列表和本地 localStorage 会话
-        const sessions = [];
-
-        // 从服务器加载
-        try {
-            const res = await fetch("/api/sessions");
-            const data = await res.json();
-            sessions.push(...(data.sessions || []));
-        } catch (err) {
-            console.error("加载服务器会话列表失败:", err);
-        }
-
-        // 从 localStorage 补充（可能有服务器上没有的）
-        let localIndex = {};
-        try {
-            localIndex = JSON.parse(localStorage.getItem(SESSIONS_INDEX_KEY) || "{}");
-        } catch (e) { /* ignore */ }
-
-        Object.entries(localIndex).forEach(([sid, info]) => {
-            if (!sessions.find(s => s.session_id === sid)) {
-                sessions.push({
-                    session_id: sid,
-                    created_at: info.updated_at || "",
-                    updated_at: info.updated_at || "",
-                    message_count: 0,
-                    _local: true,
-                });
-            }
-        });
-
-        sessions.sort((a, b) => (b.updated_at || "").localeCompare(a.updated_at || ""));
-
-        // 更新下拉选择器
-        sessionSelector.innerHTML = '<option value="">当前会话 (' + (sessionId ? sessionId.substring(0, 8) : "新") + '...)</option>';
-        sessions.forEach((s) => {
-            if (s.session_id === sessionId) return;
-            const opt = document.createElement("option");
-            opt.value = s.session_id;
-            const date = s.created_at
-                ? new Date(s.created_at).toLocaleDateString("zh-CN")
-                : "";
-            const local = s._local ? "💻" : "";
-            const first = getFirstUserMessage(s.session_id) || "";
-            const label = first ? first.substring(0, 20) : (s.message_count + "条消息");
-            opt.textContent = `${local} ${date} · ${label}`;
-            sessionSelector.appendChild(opt);
-        });
-
-        // 渲染侧边栏历史会话列表
-        // 给每个 session 附上预览文本
-        sessions.forEach(s => {
-            s._preview = getFirstUserMessage(s.session_id) || "";
-        });
-        renderHistoryList(sessions);
-    }
-
-    // ── 辅助 ──────────────────────────────────────────────
-    function clearInputs() {
-        messageInput.value = "";
-        codeInput.value = "";
-        errorInput.value = "";
-        messageInput.focus();
-    }
-
-    function togglePanel() {
-        sidePanel.classList.toggle("collapsed");
-        const toggleFloat = document.getElementById("btn-toggle-float");
-        if (sidePanel.classList.contains("collapsed")) {
-            if (toggleFloat) toggleFloat.style.display = "flex";
-        } else {
-            if (toggleFloat) toggleFloat.style.display = "none";
-        }
-    }
-
-    function scrollToBottom() {
-        chatMessages.scrollTop = chatMessages.scrollHeight;
-    }
-
-    function escapeHtml(text) {
-        const map = {
-            "&": "&amp;",
-            "<": "&lt;",
-            ">": "&gt;",
-            '"': "&quot;",
-            "'": "&#39;",
-        };
-        return text.replace(/[&<>"']/g, (c) => map[c]);
-    }
-
-    // ── 启动 ──────────────────────────────────────────────
-    // 暴露到 window 供 onclick 属性调用（避免 addEventListener 的内存问题）
-    window._switchSessionHandler = switchSession;
-    window._deleteSessionHandler = deleteSession;
-    window._renameHandler = startRename;
-    init();
+  window.Chat = {
+    sendMessage,
+    appendBubble,
+    appendMotivation,
+    renderMessages,
+    renderEmptyState,
+    clearInputs,
+    updateContextSummary,
+    showTyping,
+    hideTyping,
+  };
 })();
