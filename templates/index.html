@@ -172,6 +172,11 @@
                         <option value="java">Java</option>
                         <option value="c">C</option>
                         <option value="cpp">C++</option>
+                        <option value="javascript">JavaScript</option>
+                        <option value="typescript">TypeScript</option>
+                        <option value="go">Go</option>
+                        <option value="rust">Rust</option>
+                        <option value="sql">SQL</option>
                     </select>
                 </div>
 
@@ -211,6 +216,25 @@
         </header>
         <form id="profile-form" class="sheet-content">
             <p class="sheet-lead">让每次回答更接近你的基础、语言习惯与当前目标。</p>
+            <section class="account-card" aria-labelledby="account-card-title">
+                <div class="account-card-heading">
+                    <div>
+                        <span class="context-kicker">ACCOUNT / OPTIONAL</span>
+                        <h3 id="account-card-title">学习账号</h3>
+                    </div>
+                    <span id="account-status" class="account-status">匿名模式</span>
+                </div>
+                <p id="account-description">注册后会保留当前历史，并可在其他设备登录。匿名使用不受影响。</p>
+                <div id="account-credentials" class="account-credentials">
+                    <input id="account-email" type="email" maxlength="254" autocomplete="email" placeholder="邮箱">
+                    <input id="account-password" type="password" minlength="8" maxlength="128" autocomplete="current-password" placeholder="密码（至少 8 位）">
+                    <div class="account-actions">
+                        <button id="account-login" class="secondary-button" type="button">登录</button>
+                        <button id="account-register" class="secondary-button" type="button">注册并保留数据</button>
+                    </div>
+                </div>
+                <button id="account-logout" class="secondary-button" type="button" hidden>退出登录</button>
+            </section>
             <div class="field-group">
                 <label for="profile-nickname">怎么称呼你</label>
                 <input id="profile-nickname" maxlength="50" placeholder="例如：小林">
@@ -231,6 +255,34 @@
                 <label for="profile-goal">近期学习目标</label>
                 <textarea id="profile-goal" rows="4" maxlength="200" placeholder="例如：理解递归，完成数据结构课程设计"></textarea>
             </div>
+            <div class="field-group">
+                <label for="profile-feedback-style">反馈风格</label>
+                <select id="profile-feedback-style">
+                    <option value="balanced">自然平衡</option>
+                    <option value="warm">更多陪伴与鼓励</option>
+                    <option value="concise">简洁直接</option>
+                </select>
+                <small>只改变表达方式，不影响诊断和知识内容。</small>
+            </div>
+            <section class="memory-card" aria-labelledby="memory-card-title">
+                <div class="memory-card-header">
+                    <div>
+                        <span class="context-kicker">CROSS-SESSION MEMORY</span>
+                        <h3 id="memory-card-title">跨对话记忆</h3>
+                    </div>
+                    <label class="memory-switch">
+                        <input id="profile-memory-enabled" type="checkbox" checked>
+                        <span aria-hidden="true"></span>
+                        <small>启用</small>
+                    </label>
+                </div>
+                <p id="profile-memory-summary" class="memory-summary">完成几轮学习后，这里会形成可解释的自动画像。</p>
+                <small id="profile-memory-meta" class="memory-meta">只记录场景、语言和错误类型，不保存原始问题文本。</small>
+                <div class="memory-actions">
+                    <button id="profile-memory-refresh" class="secondary-button" type="button">重新整理</button>
+                    <button id="profile-memory-clear" class="secondary-button danger-text" type="button">清除自动记忆</button>
+                </div>
+            </section>
             <div class="sheet-actions">
                 <button id="profile-cancel" class="secondary-button" type="button">取消</button>
                 <button id="profile-save" class="primary-button" type="submit">保存画像 ↗</button>
@@ -279,6 +331,7 @@
     <script src="/static/js/chat.js"></script>
     <script src="/static/js/conversations.js"></script>
     <script src="/static/js/profile.js"></script>
+    <script src="/static/js/account.js"></script>
     <script src="/static/js/learning.js"></script>
     <script src="/static/js/main.js"></script>
 </body>

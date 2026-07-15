@@ -5,6 +5,8 @@ companion — 程序设计学习智能学伴 "小码"
 import os
 import uuid
 import logging
+import json
+import time
 from flask import Flask
 from werkzeug.middleware.proxy_fix import ProxyFix
 
@@ -52,6 +54,7 @@ def create_app(config_override: dict | None = None) -> Flask:
         from flask import request, g
         rid = request.headers.get(app.config["REQUEST_ID_HEADER"]) or str(uuid.uuid4())
         g.request_id = rid
+        g.request_started_at = time.monotonic()
 
     @app.after_request
     def _persist_client_cookie(response):
@@ -91,6 +94,17 @@ def create_app(config_override: dict | None = None) -> Flask:
                 "Strict-Transport-Security",
                 "max-age=31536000; includeSubDomains",
             )
+        from companion.observability import Observability
+        started = getattr(g, "request_started_at", time.monotonic())
+        duration_ms = int((time.monotonic() - started) * 1000)
+        Observability.record_request(request.endpoint or "unknown", response.status_code, duration_ms)
+        app.logger.info(
+            "request_complete endpoint=%s method=%s status=%s duration_ms=%s",
+            request.endpoint or "unknown",
+            request.method,
+            response.status_code,
+            duration_ms,
+        )
         return response
 
     # 导入模型，确保 SQLAlchemy 知道它们
@@ -109,6 +123,9 @@ def create_app(config_override: dict | None = None) -> Flask:
     # 结构化日志
     _setup_logging(app)
 
+    from .cli import register_cli
+    register_cli(app)
+
     return app
 
 
@@ -121,6 +138,8 @@ def _register_blueprints(app: Flask):
     from .api.profile import bp as profile_bp
     from .api.learning import bp as learning_bp
     from .api.reminders import bp as reminders_bp
+    from .api.review_plans import bp as review_plans_bp
+    from .api.auth import bp as auth_bp
 
     app.register_blueprint(health_bp)
     app.register_blueprint(bootstrap_bp)
@@ -129,6 +148,8 @@ def _register_blueprints(app: Flask):
     app.register_blueprint(profile_bp)
     app.register_blueprint(learning_bp)
     app.register_blueprint(reminders_bp)
+    app.register_blueprint(review_plans_bp)
+    app.register_blueprint(auth_bp)
 
     # 旧版兼容路由
     @app.route("/")
@@ -186,8 +207,25 @@ def _register_error_handlers(app: Flask):
 def _setup_logging(app: Flask):
     """结构化日志配置。"""
     level = getattr(logging, app.config.get("LOG_LEVEL", "INFO").upper(), logging.INFO)
-    logging.basicConfig(
-        level=level,
-        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-        datefmt="%Y-%m-%dT%H:%M:%S",
-    )
+
+    class JsonFormatter(logging.Formatter):
+        def format(self, record):
+            from flask import g, has_request_context
+            payload = {
+                "timestamp": self.formatTime(record, "%Y-%m-%dT%H:%M:%S%z"),
+                "level": record.levelname,
+                "logger": record.name,
+                "message": record.getMessage(),
+            }
+            if has_request_context():
+                payload["request_id"] = getattr(g, "request_id", "")
+            if record.exc_info:
+                payload["exception"] = self.formatException(record.exc_info)
+            return json.dumps(payload, ensure_ascii=False)
+
+    handler = logging.StreamHandler()
+    handler.setFormatter(JsonFormatter())
+    root = logging.getLogger()
+    root.handlers.clear()
+    root.addHandler(handler)
+    root.setLevel(level)

@@ -56,8 +56,14 @@ const API = {
   },
 
   bootstrap() { return this._fetch(`${this.base}/bootstrap`); },
+  getAccount() { return this._fetch(`${this.base}/auth/me`); },
+  register(data) { return this._fetch(`${this.base}/auth/register`, { method: "POST", body: JSON.stringify(data) }); },
+  login(data) { return this._fetch(`${this.base}/auth/login`, { method: "POST", body: JSON.stringify(data) }); },
+  logout() { return this._fetch(`${this.base}/auth/logout`, { method: "POST" }); },
   getProfile() { return this._fetch(`${this.base}/profile`); },
   updateProfile(data) { return this._fetch(`${this.base}/profile`, { method: "PATCH", body: JSON.stringify(data) }); },
+  clearProfileMemory() { return this._fetch(`${this.base}/profile/memory`, { method: "DELETE" }); },
+  refreshProfileMemory() { return this._fetch(`${this.base}/profile/memory/refresh`, { method: "POST" }); },
 
   createConversation(title = null) { return this._fetch(`${this.base}/conversations`, { method: "POST", body: JSON.stringify({ title }) }); },
   listConversations() { return this._fetch(`${this.base}/conversations`); },
@@ -73,4 +79,6 @@ const API = {
   getReminders() { return this._fetch(`${this.base}/reminders`); },
   markReminderRead(id) { return this._fetch(`${this.base}/reminders/${id}/read`, { method: "POST" }); },
   dismissReminder(id) { return this._fetch(`${this.base}/reminders/${id}/dismiss`, { method: "POST" }); },
+  getReviewPlans() { return this._fetch(`${this.base}/review-plans`); },
+  completeReviewPlan(id) { return this._fetch(`${this.base}/review-plans/${id}/complete`, { method: "POST" }); },
 };

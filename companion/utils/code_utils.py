@@ -12,7 +12,7 @@ LANGUAGE_FEATURES = {
         "keywords": [
             "def ", "import ", "print(", "class ", "if __name__",
             "elif ", "None", "True", "False", "self", "__init__",
-            ":", "with ", "as ", "from ", "lambda", "yield", "raise",
+            "with ", " as ", "from ", "lambda", "yield", "raise",
         ],
         "extensions": [".py"],
         "comment": "#",
@@ -42,15 +42,62 @@ LANGUAGE_FEATURES = {
         "extensions": [".cpp", ".cc", ".cxx", ".hpp"],
         "comment": "//",
     },
+    "javascript": {
+        "keywords": [
+            "const ", "let ", "console.log", "function ", "=>",
+            "require(", "module.exports", "document.", "Promise", "async ",
+        ],
+        "extensions": [".js", ".mjs", ".cjs"],
+        "comment": "//",
+    },
+    "typescript": {
+        "keywords": [
+            "interface ", "type ", "enum ", ": string", ": number",
+            ": boolean", "implements ", "keyof ", "unknown", "never",
+        ],
+        "extensions": [".ts", ".tsx"],
+        "comment": "//",
+    },
+    "go": {
+        "keywords": [
+            "package main", "func main", "fmt.", ":=", "go func",
+            "chan ", "defer ", "range ", "interface{}", "struct {",
+        ],
+        "extensions": [".go"],
+        "comment": "//",
+    },
+    "rust": {
+        "keywords": [
+            "fn main", "let mut ", "println!", "Result<", "Option<",
+            "impl ", "match ", "::", "&mut ", "pub fn",
+        ],
+        "extensions": [".rs"],
+        "comment": "//",
+    },
+    "sql": {
+        "keywords": [
+            "SELECT ", " FROM ", " WHERE ", "CREATE TABLE", "INSERT INTO",
+            "UPDATE ", "DELETE FROM", " JOIN ", "GROUP BY", "ORDER BY",
+        ],
+        "extensions": [".sql"],
+        "comment": "--",
+    },
 }
 
 # ── 中文编程语言关键词映射 ─────────────────────────────────
 CN_LANGUAGE_HINTS = {
     "python": ["python", "py", "蟒蛇", "派森"],
     "java": ["java", "爪哇"],
-    "c语言": ["c语言", "c ", "c/c++"],
-    "c++": ["c++", "cpp", "c plus plus", "c加加"],
+    "c": ["c语言", "c lang"],
+    "cpp": ["c++", "cpp", "c plus plus", "c加加"],
+    "javascript": ["javascript", "js", "node.js", "nodejs"],
+    "typescript": ["typescript", "ts"],
+    "go": ["golang", "go语言"],
+    "rust": ["rust", "rust语言"],
+    "sql": ["sql", "mysql", "sqlite", "postgresql"],
 }
+
+SUPPORTED_LANGUAGES = tuple(LANGUAGE_FEATURES.keys())
 
 
 def detect_language(code: str, hint: str = "") -> str:
@@ -61,9 +108,11 @@ def detect_language(code: str, hint: str = "") -> str:
     if not code or not code.strip():
         return "unknown"
 
-    # 1. 中文提示词优先匹配
+    # 1. 显式提示优先匹配
     if hint:
         hint_lower = hint.lower()
+        if hint_lower in LANGUAGE_FEATURES:
+            return hint_lower
         for lang, patterns in CN_LANGUAGE_HINTS.items():
             if any(p in hint_lower for p in patterns):
                 return lang
@@ -82,7 +131,7 @@ def detect_language(code: str, hint: str = "") -> str:
     # 3. 取最高分
     if scores:
         best = max(scores, key=lambda k: scores[k])
-        if scores[best] >= 2:
+        if scores[best] >= 1:
             return best
 
     # 4. 退化为 unknown
@@ -126,9 +175,16 @@ def parse_error_info(error_text: str) -> dict:
     text = error_text.strip()
 
     # Python: File "xxx.py", line 3, in ...
-    py_line = re.search(r'line\s+(\d+)', text)
+    py_line = re.search(r'line\s+(\d+)', text, re.IGNORECASE)
     if py_line:
         result["line"] = int(py_line.group(1))
+
+    location = re.search(r'[^\s:]+:(\d+):(\d+):\s*(?:error|warning)', text, re.IGNORECASE)
+    if location:
+        result["line"] = int(location.group(1))
+        result["column"] = int(location.group(2))
+    else:
+        result["column"] = None
 
     # Python: IndexError: list index out of range
     # Java: Exception in thread "main" java.lang.ArrayIndexOutOfBoundsException
@@ -136,12 +192,24 @@ def parse_error_info(error_text: str) -> dict:
     py_error = re.search(r'(\w+Error):\s*(.+)', text)
     java_error = re.search(r'(java\.\w+\.\w+Exception)', text)
     c_error = re.search(r'error:\s*(.+)', text)
+    go_panic = re.search(r'panic:\s*(.+)', text, re.IGNORECASE)
+    rust_error = re.search(r'error(?:\[E\d+\])?:\s*(.+)', text, re.IGNORECASE)
+    sql_error = re.search(r'(?:SQLSTATE\[[^\]]+\].*|syntax error at or near\s+.+)', text, re.IGNORECASE)
 
     if py_error:
         result["error_type"] = py_error.group(1)
         result["message"] = py_error.group(2)
     elif java_error:
         result["error_type"] = java_error.group(1)
+    elif go_panic:
+        result["error_type"] = "Panic"
+        result["message"] = go_panic.group(1)
+    elif rust_error:
+        result["error_type"] = "RustCompileError"
+        result["message"] = rust_error.group(1)
+    elif sql_error:
+        result["error_type"] = "SQLError"
+        result["message"] = sql_error.group(0)
     elif c_error:
         result["error_type"] = "CompileError"
         result["message"] = c_error.group(1)
@@ -171,6 +239,10 @@ def has_code(text: str) -> bool:
         r"^\s*(def |class |import |from |if __name__)",
         r"^\s*(public class|public static|System\.out)",
         r"^\s*#include\s*[<\"']",
+        r"^\s*(const|let|function)\s+",
+        r"^\s*(package|func)\s+",
+        r"^\s*(fn|impl|pub fn|let mut)\s+",
+        r"^\s*(SELECT|INSERT|UPDATE|CREATE TABLE)\s+",
         r"^\s*print\(",
         r"^\s*for\s+\w+\s+in\s+",
         r"^\s*while\s*\(.+\)",

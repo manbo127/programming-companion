@@ -8,7 +8,7 @@ Gunicorn 固定为 **1 个 worker + 4 个线程**。
 
 - 项目目录：`/srv/codemate`
 - 服务账户：`codemate`
-- 域名：`code.example.com`（需要替换）
+- 域名：`xiaomacode.xyz` 和 `www.xiaomacode.xyz`
 - Systemd 服务：`codemate.service`
 
 ## 1. 安装系统依赖
@@ -50,6 +50,8 @@ TRUST_PROXY_HOPS=1
 SESSION_COOKIE_SECURE=true
 CLIENT_COOKIE_SECURE=true
 DATABASE_URL=sqlite:////srv/codemate/instance/companion.db
+DEEPSEEK_MODEL=deepseek-v4-flash
+DEEPSEEK_THINKING=disabled
 ```
 
 不要把 `.env` 上传到 Git，也不要把 API Key 写进 Systemd 或 Nginx 配置。
@@ -75,6 +77,7 @@ sudo systemctl daemon-reload
 sudo systemctl enable --now codemate
 sudo systemctl status codemate --no-pager
 curl --fail http://127.0.0.1:8000/api/v1/health
+curl --fail http://127.0.0.1:8000/api/v1/ready
 ```
 
 实时查看日志：
@@ -85,7 +88,7 @@ sudo journalctl -u codemate -f
 
 ## 6. 安装 Nginx 配置
 
-先将 `deploy/nginx/codemate.conf` 中的 `code.example.com` 替换为真实域名，然后：
+仓库中的 Nginx 配置已经使用 `xiaomacode.xyz`，安装命令如下：
 
 ```bash
 sudo cp deploy/nginx/codemate.conf /etc/nginx/sites-available/codemate
@@ -103,7 +106,7 @@ ECS 安全组只公开 `80/443`；`22` 只允许管理员 IP；不要开放 `500
 
 ```bash
 sudo apt install -y certbot python3-certbot-nginx
-sudo certbot --nginx -d code.example.com --redirect
+sudo certbot --nginx -d xiaomacode.xyz -d www.xiaomacode.xyz --redirect
 sudo certbot renew --dry-run
 ```
 
@@ -124,6 +127,15 @@ sudo crontab -u codemate -e
 ```
 
 脚本默认保留 14 天，使用 SQLite 在线备份命令，不会遗漏 WAL 中已经提交的数据。
+也可直接使用跨平台 Flask 命令创建并自动校验备份：
+
+```bash
+sudo -u codemate bash -c '
+  cd /srv/codemate
+  set -a; source .env; set +a
+  .venv/bin/flask --app run:app backup-database --output-dir /var/backups/codemate
+'
+```
 
 ## 9. 更新版本
 
@@ -142,7 +154,8 @@ sudo -u codemate bash -c '
   .venv/bin/flask --app run:app db upgrade
 '
 sudo systemctl restart codemate
-curl --fail https://code.example.com/api/v1/health
+curl --fail https://xiaomacode.xyz/api/v1/health
+python scripts/smoke_test.py https://xiaomacode.xyz
 ```
 
 ## 10. 故障排查
@@ -153,7 +166,9 @@ sudo journalctl -u codemate -n 200 --no-pager
 sudo nginx -t
 sudo tail -n 200 /var/log/nginx/error.log
 curl -v http://127.0.0.1:8000/api/v1/health
-curl -v https://code.example.com/api/v1/health
+curl -v https://xiaomacode.xyz/api/v1/health
+curl -v https://xiaomacode.xyz/api/v1/ready
+curl -s https://xiaomacode.xyz/api/v1/metrics | python3 -m json.tool
 ```
 
 如果未来需要多台 ECS 或多个 Gunicorn worker，应先将 SQLite 迁移到 PostgreSQL、

@@ -13,6 +13,19 @@ class LLMResponse:
     input_tokens: int = 0
     output_tokens: int = 0
     latency_ms: int = 0
+    request_id: str = ""
+    finish_reason: str = ""
+    attempts: int = 1
+
+
+class LLMProviderError(RuntimeError):
+    """可安全传递到 API 层的大模型供应商错误。"""
+
+    def __init__(self, code: str, message: str, *, retryable: bool, status_code: int = 503):
+        super().__init__(message)
+        self.code = code
+        self.retryable = retryable
+        self.status_code = status_code
 
 
 class LLMGateway(ABC):

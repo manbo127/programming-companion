@@ -16,7 +16,14 @@ from companion.repositories.conversation_repository import ConversationRepositor
 from companion.repositories.profile_repository import ProfileRepository
 from companion.repositories.learning_repository import LearningRepository
 from companion.repositories.reminder_repository import ReminderRepository
+from companion.services.profile_memory import ProfileMemoryService
+from companion.services.context_memory import ContextMemoryService
+from companion.services.topic_extractor import TopicExtractor
+from companion.services.review_plan import ReviewPlanService
+from companion.knowledge import KnowledgeRetriever
+from companion.services.problem_guidance import ProblemGuidanceService
 from companion.models import Message
+from companion.observability import Observability
 
 
 class MessageInProgressError(RuntimeError):
@@ -83,10 +90,14 @@ class ChatService:
                     .first()
                 )
                 if assistant:
+                    sources = json.loads(assistant.sources_json) if assistant.sources_json else []
+                    diagnosis = json.loads(assistant.diagnosis_json) if assistant.diagnosis_json else None
                     return {
                         "reply": assistant.content,
                         "scene": assistant.scene or "general",
                         "motivation": assistant.motivation_text or "",
+                        "sources": sources,
+                        "diagnosis": diagnosis,
                         "message_id": assistant.id,
                         "status": "duplicate",
                     }
@@ -128,6 +139,16 @@ class ChatService:
         detected_lang = detect_language(code, hint=language_hint) if code else "unknown"
         error_info = parse_error_info(error_text) if error_text else {}
         error_type = error_info.get("error_type", "")
+        topic = TopicExtractor.extract(message_text, code, error_text)
+        if topic is None:
+            topic = LearningRepository.latest_topic_for_conversation(client_id, conversation_id)
+
+        # 仅使用本地审核过的摘要检索，不在用户请求链路中访问外部网页。
+        retrieval = KnowledgeRetriever.retrieve(
+            "\n".join(part for part in (message_text, code, error_text, error_type) if part),
+            language=detected_lang,
+            topic=topic,
+        )
 
         # 情绪分析（会话级）
         motive = MotivationEngine.for_conversation(
@@ -148,19 +169,40 @@ class ChatService:
         # 5. 构建 prompt
         profile = ProfileRepository.get_profile(client_id)
         profile_dict = {}
-        if profile:
+        if profile and profile.memory_enabled:
             profile_dict = {
                 "nickname": profile.nickname or "未知",
                 "skill_level": profile.skill_level or "beginner",
                 "preferred_languages": profile.preferred_languages or "未设置",
                 "learning_goal": profile.learning_goal or "未设置",
+                "feedback_style": profile.feedback_style or "balanced",
                 "memory_summary": profile.memory_summary or "暂无",
             }
+        prior_scene_turns = (
+            db.session.query(Message)
+            .filter(
+                Message.conversation_id == conversation_id,
+                Message.role == "user",
+                Message.scene == scene,
+                Message.sequence_no < seq,
+            )
+            .count()
+        )
+        diagnosis = ProblemGuidanceService.diagnose(error_info, detected_lang)
+        guidance_plan = ProblemGuidanceService.plan(
+            scene,
+            prior_scene_turns,
+            profile.skill_level if profile and profile.skill_level else "beginner",
+        )
+        guidance_context = ProblemGuidanceService.prompt_context(guidance_plan, diagnosis)
 
         system_prompt = build_system_prompt(
             scene=scene,
             emotion_hint=emotion_hint,
             profile=profile_dict,
+            language=detected_lang,
+            knowledge_context=retrieval.prompt_context(),
+            guidance_context=guidance_context,
         )
 
         user_content = build_user_message(
@@ -173,7 +215,8 @@ class ChatService:
         # 构建消息历史（最近 N 条）
         from flask import current_app
         max_msgs = current_app.config.get("MAX_CONTEXT_MESSAGES", 20)
-        max_chars = current_app.config.get("MAX_CONTEXT_CHARS", 8000)
+        max_tokens = current_app.config.get("MAX_CONTEXT_TOKENS", 6000)
+        scan_messages = current_app.config.get("MAX_CONTEXT_SCAN_MESSAGES", 120)
 
         history_desc = (
             db.session.query(Message)
@@ -182,28 +225,18 @@ class ChatService:
                 Message.sequence_no < seq,
             )
             .order_by(Message.sequence_no.desc())
-            .limit(max_msgs)
+            .limit(scan_messages)
             .all()
         )
-
-        llm_messages = [{"role": "system", "content": system_prompt}]
-        total_chars = len(system_prompt)
-        selected_history = []
-        for h in history_desc:
-            role = h.role
-            text_content = h.content or ""
-            if h.code:
-                text_content += f"\n【代码】\n{h.code}"
-            if h.error_text:
-                text_content += f"\n【错误信息】\n{h.error_text}"
-            if total_chars + len(text_content) > max_chars:
-                break
-            selected_history.append({"role": role, "content": text_content})
-            total_chars += len(text_content)
-
-        selected_history.reverse()
-        llm_messages.extend(selected_history)
-        llm_messages.append({"role": "user", "content": user_content})
+        context_window = ContextMemoryService.build_window(
+            system_prompt=system_prompt,
+            current_user_content=user_content,
+            history_desc=history_desc,
+            conversation_summary=conv.summary,
+            max_tokens=max_tokens,
+            max_messages=max_msgs,
+        )
+        llm_messages = context_window.messages
 
         # 用户消息和会话状态先落库，模型等待期间不持有写事务。
         db.session.commit()
@@ -232,22 +265,29 @@ class ChatService:
             latency_ms = llm_resp.latency_ms
             input_tokens = llm_resp.input_tokens
             output_tokens = llm_resp.output_tokens
+            llm_model = llm_resp.model
+            llm_request_id = llm_resp.request_id
+            llm_attempts = llm_resp.attempts
+            finish_reason = llm_resp.finish_reason
+            Observability.record_llm(llm_resp)
         except Exception:
             # LLM 调用失败，保留用户消息并允许相同幂等 ID 重试。
             user_msg.status = "failed"
             db.session.commit()
+            Observability.record_llm(failed=True)
             raise
 
         # 7. 保存 assistant 消息
         motivation_text = ""
-        praise = motive.get_praise()
-        encourage = motive.get_encouragement()
+        feedback_style = profile.feedback_style if profile and profile.feedback_style else "balanced"
+        praise = motive.get_praise(feedback_style)
+        encourage = motive.get_encouragement(feedback_style)
         if praise:
             motivation_text = praise
         elif encourage:
             motivation_text = encourage
         elif emotion_state.is_frustrated:
-            motivation_text = motive.get_comfort()
+            motivation_text = motive.get_comfort(feedback_style)
 
         assistant_msg = Message(
             conversation_id=conversation_id,
@@ -257,13 +297,20 @@ class ChatService:
             scene=scene,
             detected_language=detected_lang,
             error_type=error_type,
-            emotion=emotion_hint,
+            emotion=emotion_state.label,
+            emotion_score=emotion_state.score,
             motivation_text=motivation_text,
             status="completed",
             prompt_version="2.0.0",
             latency_ms=latency_ms,
             input_tokens=input_tokens,
             output_tokens=output_tokens,
+            llm_model=llm_model,
+            llm_request_id=llm_request_id,
+            llm_attempts=llm_attempts,
+            finish_reason=finish_reason,
+            sources_json=json.dumps(retrieval.sources, ensure_ascii=False) if retrieval.sources else None,
+            diagnosis_json=json.dumps(diagnosis.to_dict(), ensure_ascii=False) if diagnosis else None,
             created_at=datetime.now(timezone.utc),
         )
         db.session.add(assistant_msg)
@@ -274,30 +321,36 @@ class ChatService:
         user_msg.error_type = error_type
         user_msg.status = "completed"
 
-        # 8. 学习事件
+        # 8. 每轮都记录一个结构化学习事件，使主题、语言和趋势能够持续分析。
         if scene == "error" and error_type:
-            LearningRepository.record(
-                client_id=client_id,
-                event_type=error_type.replace("Error", "_error").lower() or "syntax_error",
-                conversation_id=conversation_id,
-                message_id=user_msg.id,
-                language=detected_lang,
-                error_type=error_type,
-            )
+            event_type = "error"
         elif emotion_state.is_frustrated:
-            LearningRepository.record(
-                client_id=client_id,
-                event_type="frustration",
-                conversation_id=conversation_id,
-                message_id=user_msg.id,
-            )
+            event_type = "frustration"
         elif emotion_state.is_positive:
-            LearningRepository.record(
-                client_id=client_id,
-                event_type="positive_progress",
-                conversation_id=conversation_id,
-                message_id=user_msg.id,
-            )
+            event_type = "positive_progress"
+        else:
+            event_type = f"{scene}_interaction"
+        LearningRepository.record(
+            client_id=client_id,
+            event_type=event_type,
+            conversation_id=conversation_id,
+            message_id=user_msg.id,
+            topic=topic,
+            language=detected_lang,
+            error_type=error_type or None,
+            metadata_json=json.dumps({
+                "scene": scene,
+                "emotion": emotion_state.label,
+                "emotion_score": emotion_state.score,
+                "emotion_intensity": emotion_state.intensity,
+            }, ensure_ascii=False),
+        )
+        ReviewPlanService.observe(
+            client_id,
+            topic,
+            had_error=bool(error_type),
+            positive=emotion_state.is_positive,
+        )
 
         # 9. 检查提醒
         if error_type:
@@ -324,12 +377,24 @@ class ChatService:
             conv.title = message_text.strip()[:50]
         conv.updated_at = datetime.now(timezone.utc)
 
+        ContextMemoryService.refresh_conversation_summary(
+            conv,
+            user_msg,
+            max_entries=current_app.config.get("CONVERSATION_SUMMARY_ENTRIES", 8),
+        )
+
+        # 11. 用本轮已结构化的场景、语言和错误信号刷新跨对话画像。
+        # 不保存原始用户文本，避免将不可信内容提升为长期 system prompt。
+        ProfileMemoryService.refresh(client_id)
+
         db.session.commit()
 
         return {
             "reply": reply,
             "scene": scene,
             "motivation": motivation_text,
+            "sources": retrieval.sources,
+            "diagnosis": diagnosis.to_dict() if diagnosis else None,
             "message_id": assistant_msg.id,
             "latency_ms": latency_ms,
         }

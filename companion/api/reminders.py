@@ -6,6 +6,7 @@ from companion.extensions import db
 from companion.repositories.reminder_repository import ReminderRepository
 from companion.api.errors import api_success, api_error
 from companion.api.bootstrap import _get_or_create_client
+from companion.services.review_plan import ReviewPlanService
 
 bp = Blueprint("reminders", __name__, url_prefix="/api/v1")
 
@@ -13,6 +14,8 @@ bp = Blueprint("reminders", __name__, url_prefix="/api/v1")
 @bp.route("/reminders", methods=["GET"])
 def list_reminders():
     client = _get_or_create_client()
+    ReviewPlanService.materialize_due(client.id)
+    db.session.commit()
     reminders = ReminderRepository.unread_for_client(client.id)
     return api_success([
         {

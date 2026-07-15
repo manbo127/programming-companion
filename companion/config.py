@@ -3,6 +3,7 @@
 """
 import os
 from pathlib import Path
+from companion.database import engine_options, normalize_database_url
 
 
 def _env_bool(name: str, default: bool = False) -> bool:
@@ -30,17 +31,12 @@ class BaseConfig:
 
     # ── Database ───────────────────────────────────────
     _project_root = Path(__file__).resolve().parent.parent
-    SQLALCHEMY_DATABASE_URI = os.getenv(
+    SQLALCHEMY_DATABASE_URI = normalize_database_url(os.getenv(
         "DATABASE_URL",
         f"sqlite:///{_project_root / 'instance' / 'companion.db'}",
-    )
+    ))
     SQLALCHEMY_TRACK_MODIFICATIONS = False
-    SQLALCHEMY_ENGINE_OPTIONS = {
-        "connect_args": {
-            "check_same_thread": False,
-        },
-        "pool_pre_ping": True,
-    }
+    SQLALCHEMY_ENGINE_OPTIONS = engine_options(SQLALCHEMY_DATABASE_URI)
 
     # ── DeepSeek API ──────────────────────────────────
     DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY", "")
@@ -49,6 +45,8 @@ class BaseConfig:
     DEEPSEEK_TIMEOUT = float(os.getenv("DEEPSEEK_TIMEOUT", "35"))
     DEEPSEEK_MAX_RETRIES = int(os.getenv("DEEPSEEK_MAX_RETRIES", "2"))
     DEEPSEEK_TOTAL_TIMEOUT = float(os.getenv("DEEPSEEK_TOTAL_TIMEOUT", "40"))
+    DEEPSEEK_THINKING = os.getenv("DEEPSEEK_THINKING", "disabled")
+    DEEPSEEK_REASONING_EFFORT = os.getenv("DEEPSEEK_REASONING_EFFORT", "high")
 
     # ── LLM 参数（按场景）───────────────────────────────
     ERROR_TEMPERATURE = 0.3
@@ -63,6 +61,9 @@ class BaseConfig:
     # ── 上下文裁剪 ─────────────────────────────────────
     MAX_CONTEXT_MESSAGES = 20
     MAX_CONTEXT_CHARS = 8000
+    MAX_CONTEXT_TOKENS = int(os.getenv("MAX_CONTEXT_TOKENS", "6000"))
+    MAX_CONTEXT_SCAN_MESSAGES = int(os.getenv("MAX_CONTEXT_SCAN_MESSAGES", "120"))
+    CONVERSATION_SUMMARY_ENTRIES = int(os.getenv("CONVERSATION_SUMMARY_ENTRIES", "8"))
 
     # ── 激励阈值 ──────────────────────────────────────
     PRAISE_THRESHOLD = 3
@@ -79,6 +80,7 @@ class BaseConfig:
     # ── 会话 Cookie ───────────────────────────────────
     CLIENT_COOKIE_NAME = "companion_client_id"
     CLIENT_COOKIE_MAX_AGE = 365 * 24 * 3600  # 1 year
+    ACCOUNT_SESSION_MAX_AGE = int(os.getenv("ACCOUNT_SESSION_MAX_AGE", str(30 * 24 * 3600)))
     CLIENT_COOKIE_SECURE = _env_bool(
         "CLIENT_COOKIE_SECURE",
         os.getenv("APP_ENV", "development").lower() == "production",

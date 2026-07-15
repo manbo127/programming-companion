@@ -28,7 +28,7 @@ def production_app():
 
 
 def _csrf_token(client) -> str:
-    response = client.get("/", base_url="https://code.example.com")
+    response = client.get("/", base_url="https://xiaomacode.xyz")
     assert response.status_code == 200
     match = re.search(
         rb'<meta name="csrf-token" content="([^"]+)"',
@@ -43,7 +43,7 @@ def test_mutation_without_csrf_token_is_rejected(production_app):
     response = client.post(
         "/api/v1/conversations",
         json={},
-        base_url="https://code.example.com",
+        base_url="https://xiaomacode.xyz",
     )
 
     assert response.status_code == 400
@@ -58,9 +58,9 @@ def test_csrf_token_allows_mutation(production_app):
         json={},
         headers={
             "X-CSRFToken": token,
-            "Referer": "https://code.example.com/",
+            "Referer": "https://xiaomacode.xyz/",
         },
-        base_url="https://code.example.com",
+        base_url="https://xiaomacode.xyz",
     )
 
     assert response.status_code == 201
@@ -74,9 +74,9 @@ def test_production_security_headers_and_cookie(production_app):
         "/api/v1/bootstrap",
         base_url="http://127.0.0.1",
         headers={
-            "Host": "code.example.com",
+            "Host": "xiaomacode.xyz",
             "X-Forwarded-Proto": "https",
-            "X-Forwarded-Host": "code.example.com",
+            "X-Forwarded-Host": "xiaomacode.xyz",
             "X-Forwarded-For": "203.0.113.10",
         },
     )

@@ -18,7 +18,11 @@ def create_llm_gateway(config: dict | None = None) -> LLMGateway:
     testing = config.get("TESTING", False)
     api_key = config.get("DEEPSEEK_API_KEY", os.getenv("DEEPSEEK_API_KEY", ""))
 
-    if testing or not api_key:
+    if testing:
+        return FakeLLM()
+    if not api_key:
+        if config.get("APP_ENV", "development") == "production":
+            raise RuntimeError("DEEPSEEK_API_KEY must be set in production")
         return FakeLLM()
 
     return DeepSeekGateway(
@@ -28,4 +32,6 @@ def create_llm_gateway(config: dict | None = None) -> LLMGateway:
         timeout=float(config.get("DEEPSEEK_TIMEOUT", os.getenv("DEEPSEEK_TIMEOUT", "35"))),
         max_retries=int(config.get("DEEPSEEK_MAX_RETRIES", os.getenv("DEEPSEEK_MAX_RETRIES", "2"))),
         total_timeout=float(config.get("DEEPSEEK_TOTAL_TIMEOUT", os.getenv("DEEPSEEK_TOTAL_TIMEOUT", "40"))),
+        thinking=str(config.get("DEEPSEEK_THINKING", os.getenv("DEEPSEEK_THINKING", "disabled"))),
+        reasoning_effort=str(config.get("DEEPSEEK_REASONING_EFFORT", os.getenv("DEEPSEEK_REASONING_EFFORT", "high"))),
     )

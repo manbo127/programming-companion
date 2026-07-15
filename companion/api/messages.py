@@ -7,6 +7,8 @@ from companion.services.chat_service import ChatService, MessageInProgressError
 from companion.repositories.conversation_repository import ConversationRepository
 from companion.api.errors import api_success, api_error
 from companion.api.bootstrap import _get_or_create_client
+from companion.utils.code_utils import SUPPORTED_LANGUAGES
+from companion.llm.base import LLMProviderError
 
 bp = Blueprint("messages", __name__, url_prefix="/api/v1")
 
@@ -31,6 +33,12 @@ def send_message(conv_id: str):
     client_message_id = str(data.get("client_message_id", "") or "")[:64]
     scene_hint = str(data.get("scene_hint", "") or "")
     language_hint = str(data.get("language_hint", "") or "")[:20]
+    if language_hint and language_hint not in SUPPORTED_LANGUAGES:
+        return api_error(
+            "VALIDATION_ERROR",
+            f"language_hint 必须为 {', '.join(SUPPORTED_LANGUAGES)} 之一",
+            422,
+        )
 
     limits = {
         "message": (message_text, current_app.config["MAX_MESSAGE_LENGTH"]),
@@ -72,6 +80,10 @@ def send_message(conv_id: str):
         return api_error("MESSAGE_IN_PROGRESS", "这条消息仍在处理中，请稍后再试", 409)
     except ValueError as e:
         return api_error("NOT_FOUND", str(e), 404)
+    except LLMProviderError as e:
+        current_app.logger.warning("LLM provider failure code=%s retryable=%s", e.code, e.retryable)
+        db.session.rollback()
+        return api_error(e.code, str(e), e.status_code)
     except Exception:
         current_app.logger.exception("Chat error")
         db.session.rollback()
@@ -81,6 +93,8 @@ def send_message(conv_id: str):
         "reply": result["reply"],
         "scene": result["scene"],
         "motivation": result["motivation"],
+        "sources": result.get("sources", []),
+        "diagnosis": result.get("diagnosis"),
         "message_id": result["message_id"],
         "latency_ms": result.get("latency_ms"),
     })

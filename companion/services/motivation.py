@@ -2,7 +2,6 @@
 情绪检测与激励话术模块
 感知用户学习状态，给予自然而真诚的情感化反馈
 """
-import random
 from dataclasses import dataclass
 from typing import Optional
 
@@ -17,6 +16,9 @@ class EmotionState:
     consecutive_success: int = 0
     frustrated_keywords: list[str] = None
     positive_keywords: list[str] = None
+    label: str = "neutral"
+    score: float = 0.0
+    intensity: str = "low"
 
     def __post_init__(self):
         if self.frustrated_keywords is None:
@@ -84,6 +86,18 @@ COMFORT_TEMPLATES = [
     "出错不可怕，可怕的是不敢再试。你已经很勇敢了。",
 ]
 
+CONCISE_TEMPLATES = {
+    "praise": ["这一步判断正确，继续验证下一个边界。", "思路已经跑通，可以继续提高难度。"],
+    "encourage": ["先缩小问题范围，我们一次只验证一个条件。", "先停一下，从第一条错误开始定位。"],
+    "comfort": ["这是可定位的问题，先看第一处有效报错。", "不用重写全部代码，先验证一个变量。"],
+}
+
+WARM_TEMPLATES = {
+    "praise": PRAISE_TEMPLATES,
+    "encourage": ENCOURAGE_TEMPLATES,
+    "comfort": COMFORT_TEMPLATES,
+}
+
 CONFUSION_RESPONSES = [
     "我换个方式再讲一遍～",
     "让我用更简单的说法再解释一下。",
@@ -145,9 +159,25 @@ class MotivationEngine:
             state.positive_keywords = positive
 
         # 检测困惑信号
-        confused = [kw for kw in CONFUSION_KEYWORDS if kw in text]
+        # 普通问句中的问号不是困惑证据，避免把所有技术提问都标成负面情绪。
+        confused = [kw for kw in CONFUSION_KEYWORDS if kw not in {"?", "？"} and kw in text]
         if confused:
             state.is_confused = True
+
+        positive_score = min(len(positive), 3)
+        negative_score = min(len(frustrated), 3) + min(len(confused), 2) * 0.5
+        raw_score = positive_score - negative_score
+        state.score = round(max(-1.0, min(1.0, raw_score / 3)), 2)
+        if raw_score > 0:
+            state.label = "positive"
+            state.is_positive = True
+            state.is_frustrated = False
+        elif raw_score < 0:
+            state.label = "frustrated" if frustrated else "confused"
+            state.is_positive = False
+        elif state.is_confused:
+            state.label = "confused"
+        state.intensity = "high" if abs(state.score) >= 0.67 else "medium" if abs(state.score) >= 0.34 else "low"
 
         # 更新连续计数器
         if state.is_positive:
@@ -164,38 +194,31 @@ class MotivationEngine:
         state.consecutive_success = self.consecutive_success
         return state
 
-    def get_praise(self) -> Optional[str]:
+    def _choose(self, category: str, style: str) -> str:
+        if style == "concise":
+            choices = CONCISE_TEMPLATES[category]
+        else:
+            choices = WARM_TEMPLATES[category]
+        offset = self.consecutive_success if category == "praise" else self.consecutive_errors
+        return choices[max(offset - 1, 0) % len(choices)]
+
+    def get_praise(self, style: str = "balanced") -> Optional[str]:
         """获取表扬话术（连续成功 ≥ 3 时触发）"""
         if self.consecutive_success < 3:
             return None
 
-        available = [t for t in PRAISE_TEMPLATES if t not in self._used_praise]
-        if not available:
-            self._used_praise.clear()
-            available = PRAISE_TEMPLATES
+        return self._choose("praise", style)
 
-        chosen = random.choice(available)
-        self._used_praise.append(chosen)
-        return chosen
-
-    def get_encouragement(self) -> Optional[str]:
+    def get_encouragement(self, style: str = "balanced") -> Optional[str]:
         """获取鼓励话术（连续错误 ≥ 2 时触发）"""
         if self.consecutive_errors < 2:
             return None
 
-        available = [t for t in ENCOURAGE_TEMPLATES
-                     if t not in self._used_encourage]
-        if not available:
-            self._used_encourage.clear()
-            available = ENCOURAGE_TEMPLATES
+        return self._choose("encourage", style)
 
-        chosen = random.choice(available)
-        self._used_encourage.append(chosen)
-        return chosen
-
-    def get_comfort(self) -> str:
+    def get_comfort(self, style: str = "balanced") -> str:
         """获取安慰话术（单次挫败）"""
-        return random.choice(COMFORT_TEMPLATES)
+        return self._choose("comfort", style)
 
     def build_emotion_hint(self, state: EmotionState) -> Optional[str]:
         """

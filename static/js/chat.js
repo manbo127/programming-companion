@@ -11,7 +11,7 @@
   const contextSummary = document.getElementById("context-summary");
   const contextSummaryText = document.getElementById("context-summary-text");
 
-  function createMessageElement(role, text, code = "", error = "") {
+  function createMessageElement(role, text, code = "", error = "", sources = [], diagnosis = null) {
     const article = document.createElement("article");
     article.className = `message ${role}`;
 
@@ -42,13 +42,50 @@
       content.appendChild(pre);
     }
 
+    if (role === "bot" && diagnosis && diagnosis.error_type) {
+      const panel = document.createElement("aside");
+      panel.className = "message-diagnosis";
+      const heading = document.createElement("strong");
+      heading.textContent = `${diagnosis.category || "错误诊断"} · ${diagnosis.error_type}`;
+      const location = document.createElement("span");
+      location.textContent = diagnosis.location || "报错位置未明确";
+      const check = document.createElement("p");
+      check.textContent = `先检查：${diagnosis.first_check || "结合调用栈定位自己的代码"}`;
+      panel.append(heading, location, check);
+      content.appendChild(panel);
+    }
+
+    if (role === "bot" && Array.isArray(sources) && sources.length) {
+      const references = document.createElement("aside");
+      references.className = "message-sources";
+      const label = document.createElement("strong");
+      label.textContent = "参考资料";
+      references.appendChild(label);
+      const list = document.createElement("ul");
+      sources.forEach(source => {
+        if (!source || !/^https:\/\//.test(source.url || "")) return;
+        const item = document.createElement("li");
+        const link = document.createElement("a");
+        link.href = source.url;
+        link.target = "_blank";
+        link.rel = "noopener noreferrer";
+        link.textContent = source.source_title || source.title || "官方文档";
+        item.appendChild(link);
+        list.appendChild(item);
+      });
+      if (list.childElementCount) {
+        references.appendChild(list);
+        content.appendChild(references);
+      }
+    }
+
     article.append(avatar, content);
     return article;
   }
 
-  function appendBubble(role, text, code = "", error = "") {
+  function appendBubble(role, text, code = "", error = "", sources = [], diagnosis = null) {
     removeEmptyState();
-    const element = createMessageElement(role, text, code, error);
+    const element = createMessageElement(role, text, code, error, sources, diagnosis);
     messagesEl.appendChild(element);
     scrollToBottom();
     return element;
@@ -88,7 +125,7 @@
       return;
     }
     messages.forEach(message => {
-      appendBubble(message.role === "assistant" ? "bot" : "user", message.content, message.code, message.error_text);
+      appendBubble(message.role === "assistant" ? "bot" : "user", message.content, message.code, message.error_text, message.sources, message.diagnosis);
       if (message.role === "assistant" && message.motivation_text) appendMotivation(message.motivation_text);
     });
     scrollToBottom(false);
@@ -151,7 +188,7 @@
         client_message_id: crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`,
       });
       hideTyping();
-      appendBubble("bot", result.reply);
+      appendBubble("bot", result.reply, "", "", result.sources, result.diagnosis);
       appendMotivation(result.motivation);
       await Conversations.loadSessions();
     } catch (errorObject) {

@@ -3,7 +3,10 @@
   const content = document.getElementById("learning-content");
   const badge = document.getElementById("reminders-badge");
   const railBadge = document.getElementById("reminders-badge-rail");
-  const languageNames = { python: "Python", java: "Java", c: "C", cpp: "C++" };
+  const languageNames = {
+    python: "Python", java: "Java", c: "C", cpp: "C++",
+    javascript: "JavaScript", typescript: "TypeScript", go: "Go", rust: "Rust", sql: "SQL",
+  };
 
   function metric(label, value, detail) {
     const block = document.createElement("div");
@@ -18,23 +21,108 @@
     return block;
   }
 
-  function render(overview, reminders) {
+  function render(overview, reminders, reviewPlans) {
     content.replaceChildren();
 
     const metrics = document.createElement("section");
     metrics.className = "learning-metrics";
     const topError = overview.top_error_types?.[0];
+    const trendLabels = {
+      improving: "近 7 天错误量下降",
+      needs_attention: "近 7 天错误量上升",
+      stable: "近两周表现相对稳定",
+    };
     metrics.append(
-      metric("学习事件", String(overview.total_events || 0), "系统记录的近期学习信号"),
+      metric("学习事件", String(overview.total_events || 0), `${overview.window_days || 30} 天窗口`),
       metric(
         "使用语言",
         String(overview.languages_used?.length || 0),
         overview.languages_used?.map(language => languageNames[language] || language).join("、") || "等待第一次代码分析",
       ),
       metric("高频错误", topError ? String(topError[1]) : "0", topError ? topError[0] : "尚未发现重复错误"),
-      metric("待处理提醒", String(reminders.length), reminders.length ? "可以逐条查看并处理" : "当前没有新提醒"),
+      metric("活跃天数", String(overview.active_days || 0), trendLabels[overview.trend?.direction] || "等待更多学习记录"),
     );
     content.appendChild(metrics);
+
+    const progressSection = document.createElement("section");
+    progressSection.className = "learning-section";
+    const progressHeading = document.createElement("h3");
+    progressHeading.textContent = "知识点掌握趋势";
+    progressSection.appendChild(progressHeading);
+    const topicProgress = overview.topic_progress || [];
+    if (!topicProgress.length) {
+      const empty = document.createElement("p");
+      empty.className = "learning-empty";
+      empty.textContent = "提交包含知识点的问题或代码后，这里会形成学习趋势。";
+      progressSection.appendChild(empty);
+    } else {
+      const progressList = document.createElement("div");
+      progressList.className = "topic-progress-list";
+      topicProgress.forEach(item => {
+        const row = document.createElement("article");
+        row.className = "topic-progress-item";
+        const heading = document.createElement("div");
+        const name = document.createElement("strong");
+        name.textContent = item.topic;
+        const score = document.createElement("span");
+        score.textContent = `${item.mastery_score} / 100`;
+        heading.append(name, score);
+        const track = document.createElement("div");
+        track.className = "topic-progress-track";
+        const fill = document.createElement("span");
+        fill.style.width = `${Math.max(0, Math.min(item.mastery_score, 100))}%`;
+        track.appendChild(fill);
+        const detail = document.createElement("small");
+        detail.textContent = `${item.attempts} 次互动 · ${item.errors} 次错误 · ${item.positive} 次积极反馈`;
+        row.append(heading, track, detail);
+        progressList.appendChild(row);
+      });
+      progressSection.appendChild(progressList);
+    }
+    content.appendChild(progressSection);
+
+    const planSection = document.createElement("section");
+    planSection.className = "learning-section";
+    const planHeading = document.createElement("h3");
+    planHeading.textContent = "间隔复习计划";
+    planSection.appendChild(planHeading);
+    if (!reviewPlans.length) {
+      const empty = document.createElement("p");
+      empty.className = "learning-empty";
+      empty.textContent = "系统会根据错误和练习主题自动安排 1、3、7、14、30 天复习。";
+      planSection.appendChild(empty);
+    } else {
+      const list = document.createElement("div");
+      list.className = "review-plan-list";
+      reviewPlans.forEach(plan => {
+        const item = document.createElement("article");
+        item.className = "review-plan-item";
+        const copy = document.createElement("div");
+        const title = document.createElement("strong");
+        title.textContent = plan.topic;
+        const due = document.createElement("small");
+        due.textContent = `下次复习：${new Date(plan.next_review_at).toLocaleString("zh-CN")}`;
+        copy.append(title, due);
+        const complete = document.createElement("button");
+        complete.type = "button";
+        complete.textContent = "完成一次";
+        complete.addEventListener("click", async () => {
+          complete.disabled = true;
+          try {
+            await API.completeReviewPlan(plan.id);
+            await loadOverview();
+            UI.toast("已安排下一次复习");
+          } catch (error) {
+            UI.toast(error.message || "复习计划更新失败", "error");
+            complete.disabled = false;
+          }
+        });
+        item.append(copy, complete);
+        list.appendChild(item);
+      });
+      planSection.appendChild(list);
+    }
+    content.appendChild(planSection);
 
     const reminderSection = document.createElement("section");
     reminderSection.className = "learning-section";
@@ -96,8 +184,12 @@
   }
 
   async function loadOverview() {
-    const [overview, reminders] = await Promise.all([API.getLearningOverview(), API.getReminders()]);
-    render(overview || {}, reminders || []);
+    const [overview, reminders, reviewPlans] = await Promise.all([
+      API.getLearningOverview(),
+      API.getReminders(),
+      API.getReviewPlans(),
+    ]);
+    render(overview || {}, reminders || [], reviewPlans || []);
     updateBadge(reminders || []);
   }
 

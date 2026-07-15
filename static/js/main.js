@@ -98,6 +98,7 @@
 
     try {
       const bootstrap = await API.bootstrap();
+      Account.apply(bootstrap.account || {});
       Profile.applyProfile(bootstrap.profile || {});
       await Conversations.loadSessions();
       Conversations.showHome();

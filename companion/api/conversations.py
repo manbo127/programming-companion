@@ -1,6 +1,7 @@
 """
 会话 API — CRUD
 """
+import json
 from flask import Blueprint, g, request
 from companion.extensions import db
 from companion.repositories.profile_repository import ProfileRepository
@@ -109,7 +110,10 @@ def list_messages(conv_id: str):
             "detected_language": m.detected_language,
             "error_type": m.error_type,
             "emotion": m.emotion,
+            "emotion_score": m.emotion_score,
             "motivation_text": m.motivation_text,
+            "sources": json.loads(m.sources_json) if m.sources_json else [],
+            "diagnosis": json.loads(m.diagnosis_json) if m.diagnosis_json else None,
             "status": m.status,
             "created_at": m.created_at.isoformat() if m.created_at else None,
         }

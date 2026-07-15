@@ -21,6 +21,12 @@ class Client(db.Model):
     id = db.Column(db.String(36), primary_key=True, default=_new_uuid)
     created_at = db.Column(db.DateTime, nullable=False, default=_utcnow)
     last_seen_at = db.Column(db.DateTime, nullable=False, default=_utcnow)
+    email = db.Column(db.String(254), nullable=True, unique=True, index=True)
+    password_hash = db.Column(db.String(255), nullable=True)
+    is_anonymous = db.Column(db.Boolean, nullable=False, default=True)
+    failed_login_attempts = db.Column(db.Integer, nullable=False, default=0)
+    locked_until = db.Column(db.DateTime, nullable=True)
+    last_login_at = db.Column(db.DateTime, nullable=True)
 
     # 关系
     profile = db.relationship("LearnerProfile", back_populates="client", uselist=False,
@@ -31,6 +37,26 @@ class Client(db.Model):
                                       cascade="all, delete-orphan")
     reminders = db.relationship("Reminder", back_populates="client",
                                 cascade="all, delete-orphan")
+    review_plans = db.relationship("ReviewPlan", back_populates="client",
+                                   cascade="all, delete-orphan")
+    account_sessions = db.relationship("AccountSession", back_populates="client",
+                                       cascade="all, delete-orphan")
+
+
+class AccountSession(db.Model):
+    """注册账号的可撤销设备会话。"""
+    __tablename__ = "account_sessions"
+
+    id = db.Column(db.String(36), primary_key=True, default=_new_uuid)
+    client_id = db.Column(db.String(36), db.ForeignKey("clients.id", ondelete="CASCADE"),
+                          nullable=False, index=True)
+    token_hash = db.Column(db.String(64), nullable=False)
+    created_at = db.Column(db.DateTime, nullable=False, default=_utcnow)
+    last_seen_at = db.Column(db.DateTime, nullable=False, default=_utcnow)
+    expires_at = db.Column(db.DateTime, nullable=False)
+    revoked_at = db.Column(db.DateTime, nullable=True)
+
+    client = db.relationship("Client", back_populates="account_sessions")
 
 
 class LearnerProfile(db.Model):
@@ -43,7 +69,11 @@ class LearnerProfile(db.Model):
     skill_level = db.Column(db.String(20), nullable=True, default="beginner")
     preferred_languages = db.Column(db.Text, nullable=True)  # JSON array
     learning_goal = db.Column(db.Text, nullable=True)
+    feedback_style = db.Column(db.String(20), nullable=False, default="balanced")
     memory_summary = db.Column(db.Text, nullable=True)
+    memory_enabled = db.Column(db.Boolean, nullable=False, default=True)
+    memory_reset_at = db.Column(db.DateTime, nullable=True)
+    memory_updated_at = db.Column(db.DateTime, nullable=True)
     created_at = db.Column(db.DateTime, nullable=False, default=_utcnow)
     updated_at = db.Column(db.DateTime, nullable=False, default=_utcnow, onupdate=_utcnow)
 
@@ -89,12 +119,19 @@ class Message(db.Model):
     detected_language = db.Column(db.String(20), nullable=True)
     error_type = db.Column(db.String(100), nullable=True)
     emotion = db.Column(db.String(20), nullable=True)
+    emotion_score = db.Column(db.Float, nullable=True)
     motivation_text = db.Column(db.Text, nullable=True)
     status = db.Column(db.String(20), nullable=False, default="completed")
     prompt_version = db.Column(db.String(20), nullable=True)
     latency_ms = db.Column(db.Integer, nullable=True)
     input_tokens = db.Column(db.Integer, nullable=True)
     output_tokens = db.Column(db.Integer, nullable=True)
+    llm_model = db.Column(db.String(100), nullable=True)
+    llm_request_id = db.Column(db.String(100), nullable=True)
+    llm_attempts = db.Column(db.Integer, nullable=True)
+    finish_reason = db.Column(db.String(50), nullable=True)
+    sources_json = db.Column(db.Text, nullable=True)
+    diagnosis_json = db.Column(db.Text, nullable=True)
     created_at = db.Column(db.DateTime, nullable=False, default=_utcnow)
 
     conversation = db.relationship("Conversation", back_populates="messages")
@@ -144,4 +181,27 @@ class Reminder(db.Model):
 
     __table_args__ = (
         db.UniqueConstraint("client_id", "dedupe_key", name="uq_reminder_dedupe"),
+    )
+
+
+class ReviewPlan(db.Model):
+    """基于知识点的间隔复习计划。"""
+    __tablename__ = "review_plans"
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    client_id = db.Column(db.String(36), db.ForeignKey("clients.id", ondelete="CASCADE"),
+                          nullable=False, index=True)
+    topic = db.Column(db.String(200), nullable=False)
+    reason = db.Column(db.String(50), nullable=False, default="practice")
+    interval_index = db.Column(db.Integer, nullable=False, default=0)
+    next_review_at = db.Column(db.DateTime, nullable=False)
+    last_reviewed_at = db.Column(db.DateTime, nullable=True)
+    status = db.Column(db.String(20), nullable=False, default="active")
+    created_at = db.Column(db.DateTime, nullable=False, default=_utcnow)
+    updated_at = db.Column(db.DateTime, nullable=False, default=_utcnow, onupdate=_utcnow)
+
+    client = db.relationship("Client", back_populates="review_plans")
+
+    __table_args__ = (
+        db.UniqueConstraint("client_id", "topic", name="uq_review_plan_client_topic"),
     )
